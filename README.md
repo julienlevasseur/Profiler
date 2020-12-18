@@ -2,9 +2,7 @@
 
 [![Build status](https://github.com/julienlevasseur/profiler/badges/master/build.svg)](https://github.com/julienlevasseur/profiler/commits/master)
 
-![profiler.png](https://github.com/julienlevasseur/profiler/raw/master/images/profiler.png)
-
-Cloud Profile Manager is simple tool that allow you to manage your environment variables for cloud tools (such as kubectl, awscli, openstack clients, terraform, consul ...).
+Profiler is simple tool that allow you to manage your environment variables via profiles and distributed files.
 
 ## Usage
 
