@@ -22,4 +22,4 @@ release-snapshot:
 	goreleaser --snapshot
 
 release:
-	goreleaser
+	goreleaser --rm-dist
