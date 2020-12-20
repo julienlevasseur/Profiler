@@ -1,0 +1,56 @@
+# 3.1.0
+
+- Implement Cobra framework as CLI library
+
+# 3.0.1
+
+- Add a test for setConfigFile function
+- Add `src/` & `bin/` to gitignore
+- Add go.mod
+
+# 3.0.0
+
+- Add a configFile that support:
+    - Path to the profile files (`cloudProfileFolder`)
+    - Alternate shell that apply to every profile that don't provide a shell
+
+- Set the default shell to $SHELL instead of bash
+
+- Refactor tests with Ginkgo
+
+- Simplify the pipeline
+
+# 2.3.0
+
+- Add support of tier shell (not only bash), via the `shell` attribute.
+
+# 2.2.3
+
+- Add a statement if no profile is provided to 'use' option, then print help.
+
+# 2.2.1
+
+- Correct a big with listFiles function (25bbccbd)
+
+# 2.2.0
+
+- Refactor the pipeline (c4dd0873, 6c1c483f, 7e7fb5fe, 1f3e9e8f)
+
+# 2.1.0
+
+- Implement AWS MFA support (de7af637)
+
+# 2.0.0
+
+- Refactor main function and other functions / clean the code (c55f16e3)
+
+# 1.3.0
+
+- Implement support of *.env files (a9495c1f)
+- Various refactoring and linting adjustments (039dc120, 892e79da, 319a70b1, c0a0dda6,  9ff786fa,  f590b62c)
+
+# 1.2.0
+
+- Correct parseEnvrc which was adding a " to .cloud_profile values (e76d9109)
+- Reorganise import according to gofmt recommendation (0c186101)
+- Implement usage of existing .cloud_profile (169c0a23)

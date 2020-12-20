@@ -1,4 +1,4 @@
-# Cloud Profile Manager
+# Profiler
 
 [![Build status](https://github.com/julienlevasseur/profiler/badges/master/build.svg)](https://github.com/julienlevasseur/profiler/commits/master)
 
