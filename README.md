@@ -49,7 +49,7 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 
 > **Note**
 >
-> Cloud Profile Manager hsa been tested only with bash and zsh.
+> Profiler hsa been tested only with bash and zsh.
 > Any contribution to validate other shells are welcomed.
 
 ##### preserveProfile
@@ -68,7 +68,7 @@ preserveProfile: true # Optional (true by default)
 
 ### The profile definition
 
-If you want to set env vars or cloud profiles, you can create as many profile files as you want into the `profilerFolder`.
+If you want to set env vars or profiles, you can create as many profile files as you want into the `profilerFolder`.
 
 > **Note**
 >
