@@ -1,3 +1,14 @@
+# 3.2.1
+
+- Migrate to Github
+- Improve testing
+- Adds Goreleaser support
+- Migrate pipeline to Github Actions
+
+# 3.2.0
+
+- Implement `.profiler` file preservation option
+
 # 3.1.0
 
 - Implement Cobra framework as CLI library
