@@ -65,14 +65,14 @@ var _ = Describe("Profiler", func() {
 		// to copy the files. Simply because a map can't contain duplicate keys and
 		// some files have to be copied to 2 different destinations.
 		filesToCopy := map[string]string{
-			configFile:                    "test/.profiler_cfg.yml",
-			altConfigFile:                 "test/.alt_profiler_cfg.yml",
-			profilesPath + ".env.yml":     "test/.env.yml",
-			profilesPath + ".testrc":      "test/.testrc",
-			profilesPath + ".test.yml":    "test/.test.yml",
-			altProfilesPath + ".env.yml":  "test/.env.yml",
-			altProfilesPath + ".testrc":   "test/.testrc",
-			altProfilesPath + ".test.yml": "test/.test.yml",
+			configFile:                    "../../test/.profiler_cfg.yml",
+			altConfigFile:                 "../../test/.alt_profiler_cfg.yml",
+			profilesPath + ".env.yml":     "../../test/.env.yml",
+			profilesPath + ".testrc":      "../../test/.testrc",
+			profilesPath + ".test.yml":    "../../test/.test.yml",
+			altProfilesPath + ".env.yml":  "../../test/.env.yml",
+			altProfilesPath + ".testrc":   "../../test/.testrc",
+			altProfilesPath + ".test.yml": "../../test/.test.yml",
 		}
 
 		// Copy the files needed to the tests:
@@ -82,9 +82,9 @@ var _ = Describe("Profiler", func() {
 
 		files = helpers.ListFiles(profilesPath, ".*")
 		p = GetProfile(profilesPath, "test")
-		f = fileExist(configFile)
-		parseYamlResult = parseYaml("test/.test.yml")
-		parseEnvrcResult = parseEnvrc("test/.testrc")
+		f = FileExist(configFile)
+		parseYamlResult = ParseYaml("test/.test.yml")
+		parseEnvrcResult = ParseEnvrc("test/.testrc")
 	})
 
 	Context("fileExist", func() {
