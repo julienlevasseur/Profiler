@@ -1,3 +1,7 @@
+# 3.2.2
+
+- Removes FreeBSD support
+
 # 3.2.1
 
 - Migrate to Github
