@@ -136,16 +136,9 @@ export FOO=bar
 > **Note**
 > I strongly recommand, for convenience, for you to add `.profiler` field to your global `.gitignore`.
 
-## Dependencies installation
-
-This command will install the dependencies, including the test ones :
-```bash
-go get -t ./...
-```
-
 ## How I'm using it
 
-Basically I like the idea to run a command that summerize all the env vars I need than sourcing a file in a folder that I will haveto figure out the location almost every time I need it.
+Basically I like the idea to run a command that summerize all the env vars I need rather than sourcing a file in a folder that I will have to figure out the location almost every time I need it.
 
 So, I define my cloud providers env vars per profile :
 
@@ -154,7 +147,7 @@ So, I define my cloud providers env vars per profile :
 * Personnal AWS
 ...
 
-In each of those, I have something like :
+In each of these, I have something like :
 
 ```yaml
 profile_name: aws_dev
@@ -166,6 +159,10 @@ CONSUL_HTTP_TOKEN:
 I'm using the `profile_name` var in my PS1 to display on my shell which profile is currently in use :
 
 ![usage_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/usage_demo.png)
+
+> **Note**
+> I use [Powerline-shell](https://github.com/b-ryan/powerline-shell) to customize my PS1.
+> If you use it too and want take advantage of it to display you *env profile* you can find the segment [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/cloud_profile.py) and a support of Terraform workspaces [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/terraform_workspace.py).
 
 And I set project's specific vars via the `.env.yml` file. For example, if I have a project that contain the code to provision a Kubernetes cluster with [KOPS](https://github.com/kubernetes/kops) I will set the `my_project/.env.yml` as :
 
