@@ -1,3 +1,11 @@
+# 3.2.4
+
+- CI improvement (Release only on new tags)
+
+# 3.2.3
+
+- README Improvement & images cleanup
+
 # 3.2.2
 
 - Removes FreeBSD support
