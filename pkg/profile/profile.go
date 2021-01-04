@@ -13,18 +13,29 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/spf13/viper"
-
-	"github.com/julienlevasseur/profiler/helpers"
 )
 
 type KeyValueMap map[string]string
 
 var envVars KeyValueMap
 var profilerFile, _ = filepath.Abs(".profiler")
-var anyEnvFile = helpers.ListFiles(".", "*.env")
+var anyEnvFile = ListFiles(".", "*.env")
 var envFile, _ = filepath.Abs(".env.yml")
 var envRcFile, _ = filepath.Abs(".envrc")
 
+// ListFiles return a list of filenames that match the provided extension
+// found in the given folder
+func ListFiles(folder string, extension string) []string {
+	var files []string
+
+	files, err := filepath.Glob(folder + "/" + extension)
+	if err != nil {
+		panic(err)
+	}
+	return files
+}
+
+// FileExist return a boolean representing if the given file exists
 func FileExist(file string) bool {
 	if _, err := os.Stat(file); err == nil {
 		return true
@@ -112,7 +123,11 @@ func SetEnvironment(yml KeyValueMap) {
 	}
 
 	if viper.GetBool("preserveProfile") == false {
-		helpers.CleanProfileFile()
+		err := os.Remove(".profiler")
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	env := os.Environ()
@@ -194,4 +209,8 @@ func UseNoProfile() {
 	}
 
 	SetEnvironment(envVars)
+}
+
+func cleanProfileFile() {
+	
 }
