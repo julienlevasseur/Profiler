@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/julienlevasseur/profiler/cmd"
-	"github.com/julienlevasseur/profiler/helpers"
 	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
@@ -83,12 +82,12 @@ var _ = Describe("Profiler", func() {
 			copyFile(src, dest)
 		}
 
-		files = helpers.ListFiles(profilesPath, ".*")
+		files = profile.ListFiles(profilesPath, ".*")
 		p = profile.GetProfile(profilesPath, "test")
 		f = profile.FileExist(configFile)
 		parseYamlResult = profile.ParseYaml("test/.test.yml")
 		parseEnvrcResult = profile.ParseEnvrc("test/.testrc")
-		altFiles = helpers.ListFiles(altProfilesPath, ".*")
+		altFiles = profile.ListFiles(altProfilesPath, ".*")
 	})
 
 	Context("ListFiles", func() {
