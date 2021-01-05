@@ -1,6 +1,8 @@
 # Profiler
 
-[![Build status](https://github.com/julienlevasseur/profiler/badges/master/build.svg)](https://github.com/julienlevasseur/profiler/commits/master)
+![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
+
+![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
 
 Profiler is simple tool that allow you to manage your environment variables via profiles and distributed files.
 

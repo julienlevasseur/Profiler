@@ -1,3 +1,10 @@
+# 3.2.5
+
+- Removes helpers pkg (there should be no helpers package:
+    "[A little] duplication is far cheaper than the wrong abstraction."
+  )
+- Improve tests (for MacOS target)
+
 # 3.2.4
 
 - CI improvement (Release only on new tags)
