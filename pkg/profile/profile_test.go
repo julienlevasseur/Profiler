@@ -9,8 +9,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	"github.com/julienlevasseur/profiler/helpers"
 )
 
 var configFile string = "/tmp/.profiler_cfg.yml"
@@ -80,7 +78,7 @@ var _ = Describe("Profiler", func() {
 			copyFile(src, dest)
 		}
 
-		files = helpers.ListFiles(profilesPath, ".*")
+		files = ListFiles(profilesPath, ".*")
 		p = GetProfile(profilesPath, "test")
 		f = FileExist(configFile)
 		parseYamlResult = ParseYaml("test/.test.yml")
