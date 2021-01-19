@@ -1,7 +1,6 @@
 # Profiler
 
 ![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
-
 ![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
 
 Profiler is simple tool that allow you to manage your environment variables via profiles and distributed files.
@@ -78,7 +77,7 @@ If you want to set env vars or profiles, you can create as many profile files as
 >
 > e.g:
 > ```bash
->/My/Home/.profiler/
+>/home/$USER/.profiles/
 >└── .example-aws-us-east-1.yml
 >```
 > 
