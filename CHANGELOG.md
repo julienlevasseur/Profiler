@@ -1,3 +1,7 @@
+# 3.2.6
+
+- Set default `profileFolder` to `~/.profiles` rather than `~/.profiler` to avid conflict with the `.profiler` file in home dir.
+
 # 3.2.5
 
 - Removes helpers pkg (there should be no helpers package:

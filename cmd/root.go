@@ -33,7 +33,7 @@ func Execute() {
 }
 
 func writeDefaultConfigFile(homeFolder, configFile string) {
-	defaultConfig := []byte(fmt.Sprintf("profilerFolder: %s/.profiler", homeFolder))
+	defaultConfig := []byte(fmt.Sprintf("profilerFolder: %s/.profiles", homeFolder))
 	err := ioutil.WriteFile(configFile, defaultConfig, 0644)
 	if err != nil {
 		fmt.Println(err)

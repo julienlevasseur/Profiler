@@ -35,7 +35,7 @@ export PROFILER_CFG="/my/prefered/path"
 
 > **Note**
 > 
-> If no configuration file is found, a default configuration file will be created poiting the `profilerFolder` attribute to `$HOME/.profiler`.
+> If no configuration file is found, a default configuration file will be created poiting the `profilerFolder` attribute to `$HOME/.profiles`.
 
 #### Configuration options
 
@@ -63,7 +63,7 @@ With this option you can decide if you prefer to keep the `.profiler` files, so 
 ###### Example of a configuration file
 
 ```yml
-profilerFolder: /My/Home/.profiler
+profilerFolder: /My/Home/.profiles
 shell: bash               # Optional (current shell by default)
 preserveProfile: true # Optional (true by default)
 ```
