@@ -23,8 +23,8 @@ var anyEnvFile = ListFiles(".", "*.env")
 var envFile, _ = filepath.Abs(".env.yml")
 var envRcFile, _ = filepath.Abs(".envrc")
 
-// ListFiles return a list of filenames that match the provided extension
-// found in the given folder
+/*ListFiles return a list of filenames that match the provided extension
+* found in the given folder */
 func ListFiles(folder string, extension string) []string {
 	var files []string
 
@@ -35,7 +35,7 @@ func ListFiles(folder string, extension string) []string {
 	return files
 }
 
-// FileExist return a boolean representing if the given file exists
+/*FileExist return a boolean representing if the given file exists*/
 func FileExist(file string) bool {
 	if _, err := os.Stat(file); err == nil {
 		return true
@@ -44,6 +44,7 @@ func FileExist(file string) bool {
 	return false
 }
 
+/*ParseYaml parse the given yaml file */
 func ParseYaml(filename string) KeyValueMap {
 	var y KeyValueMap
 	source, err := ioutil.ReadFile((filename))
@@ -59,6 +60,7 @@ func ParseYaml(filename string) KeyValueMap {
 	return y
 }
 
+/*ParseEnvrc parse the given rc file */
 func ParseEnvrc(filename string) KeyValueMap {
 	envrcVars := make(map[string]string)
 	file, err := os.Open(filename)
@@ -88,7 +90,8 @@ func ParseEnvrc(filename string) KeyValueMap {
 }
 
 /*SetEnvironment read the profilerFile and set a new environment in
-  the given shell (exported one if the config doesn't specify one)*/
+* the given shell (exported one if the config doesn't specify one)
+ */
 func SetEnvironment(yml KeyValueMap) {
 	d := []byte("")
 	err := ioutil.WriteFile(profilerFile, d, 0644)
@@ -150,7 +153,8 @@ func GetProfile(profileFolder string, profileName string) KeyValueMap {
 }
 
 /*Use return a map of all the key:value set found in the local accpeted
-files, including the given profile*/
+* files, including the given profile
+ */
 func Use(profilesFolder string, profileName string) {
 	envVars := make(map[string]string)
 	// parse .profiler file:
@@ -180,7 +184,8 @@ func Use(profilesFolder string, profileName string) {
 }
 
 /*UseNoProfile return a map of all the key:value set found in the local accepted
-files*/
+* files
+ */
 func UseNoProfile() {
 	envVars := make(map[string]string)
 	// check for .profiler file:
@@ -211,6 +216,13 @@ func UseNoProfile() {
 	SetEnvironment(envVars)
 }
 
-func cleanProfileFile() {
-	
+/*ShowProfile return a list of keys for the given profile */
+func ShowProfile(profilesFolder string, profileName string) []string {
+	var vars []string
+
+	for k := range GetProfile(profilesFolder, profileName) {
+		vars = append(vars, k)
+	}
+
+	return vars
 }

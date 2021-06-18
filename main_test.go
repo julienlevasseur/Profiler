@@ -51,7 +51,7 @@ func Test(t *testing.T) {
 }
 
 var cfg, p profile.KeyValueMap
-var files, altFiles []string
+var altFiles, files, s []string
 var f bool
 var parseYamlResult, parseEnvrcResult profile.KeyValueMap
 
@@ -84,6 +84,7 @@ var _ = Describe("Profiler", func() {
 
 		files = profile.ListFiles(profilesPath, ".*")
 		p = profile.GetProfile(profilesPath, "test")
+		s = profile.ShowProfile(profilesPath, "test")
 		f = profile.FileExist(configFile)
 		parseYamlResult = profile.ParseYaml("test/.test.yml")
 		parseEnvrcResult = profile.ParseEnvrc("test/.testrc")
@@ -120,6 +121,17 @@ var _ = Describe("Profiler", func() {
 					"value",
 				),
 			)
+		})
+	})
+
+	Context("ShowProfile", func() {
+
+		It("should be type of []string", func() {
+			Expect(reflect.TypeOf(s).String()).To(Equal("[]string"))
+		})
+
+		It("should contain the key", func() {
+			Expect(s).To(Equal([]string{"key"}))
 		})
 	})
 
@@ -175,20 +187,20 @@ var _ = Describe("Profiler", func() {
 	Context("Alternate config", func() {
 		// Simulate a user setings his custom configFile path:
 		os.Setenv("PROFILER_CFG", altConfigFile)
-		
+
 		It("should be type of []string", func() {
 			Expect(reflect.TypeOf(altFiles).String()).To(Equal("[]string"))
 		})
-		
+
 		It("should contain 3 elements", func() {
 			Expect(altFiles).To(HaveLen(3))
 		})
-		
+
 		It("should contain .env.yml, .testrc & .test.yml", func() {
 			Expect(altFiles).To(ContainElement(altProfilesPath + ".test.yml"))
 		})
 	})
-	
+
 	Context("setConfigFile", func() {
 		// Simulate a user setings his custom configFile path:
 		os.Setenv("PROFILER_CFG", noCfgFilePath)

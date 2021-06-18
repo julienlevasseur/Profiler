@@ -48,7 +48,7 @@ func Test(t *testing.T) {
 }
 
 var p, parseYamlResult, parseEnvrcResult map[string]string
-var files, altFiles []string
+var altFiles, files, s []string
 var f bool
 
 var _ = Describe("Profiler", func() {
@@ -80,6 +80,7 @@ var _ = Describe("Profiler", func() {
 
 		files = ListFiles(profilesPath, ".*")
 		p = GetProfile(profilesPath, "test")
+		s = ShowProfile(profilesPath, "test")
 		f = FileExist(configFile)
 		parseYamlResult = ParseYaml("test/.test.yml")
 		parseEnvrcResult = ParseEnvrc("test/.testrc")
