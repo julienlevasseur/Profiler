@@ -1,3 +1,7 @@
+# 3.3.0
+
+- Add a `show` argument to display exported profiles variable names.
+
 # 3.2.6
 
 - Set default `profileFolder` to `~/.profiles` rather than `~/.profiler` to avid conflict with the `.profiler` file in home dir.
