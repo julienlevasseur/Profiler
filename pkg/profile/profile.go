@@ -152,10 +152,43 @@ func GetProfile(profileFolder string, profileName string) KeyValueMap {
 	)
 }
 
+func GetEnv() KeyValueMap {
+	env := make(KeyValueMap)
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		//fmt.Println(pair[0] + ": " + pair[1])
+		env[pair[0]] = pair[1]
+	}
+
+	return env
+}
+
+func saveHistory() {
+	cmd := exec.Command(
+		"history",
+		"|",
+		"tail",
+		"-10",
+		"|",
+		"awk",
+		"'{$1=\"\"}1'",
+		"|",
+		"awk",
+		"'{$1=$1}1'",
+		">",
+		".profiler_shell_history",
+	)
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+}
+
 /*Use return a map of all the key:value set found in the local accpeted
 * files, including the given profile
  */
 func Use(profilesFolder string, profileName string) {
+	saveHistory()
 	envVars := make(map[string]string)
 	// parse .profiler file:
 	for k, v := range GetProfile(profilesFolder, profileName) {
@@ -178,6 +211,10 @@ func Use(profilesFolder string, profileName string) {
 		for k, v := range ParseEnvrc(envRcFile) {
 			envVars[k] = v
 		}
+	}
+
+	for k, v := range GetEnv() {
+		envVars[k] = v
 	}
 
 	SetEnvironment(envVars)
