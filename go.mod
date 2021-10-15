@@ -1,6 +1,6 @@
 module github.com/julienlevasseur/profiler
 
-go 1.12
+go 1.16
 
 require (
 	github.com/PaddleHQ/go-aws-ssm v0.8.0 // indirect
