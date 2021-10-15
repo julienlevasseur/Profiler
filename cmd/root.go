@@ -52,7 +52,7 @@ func InitConfig() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	
+
 	if os.Getenv("PROFILER_CFG") != "" {
 		configFile := os.Getenv("PROFILER_CFG")
 		viper.SetConfigFile(configFile)
@@ -61,15 +61,16 @@ func InitConfig() {
 		}
 	} else {
 		// If there is no .profiler_cfg.yml file (like. for the first execution)
-		// let's create a default one. 
+		// let's create a default one.
 		configFile := fmt.Sprintf("%s/.profiler_cfg.yml", home)
 		if _, err := os.Stat(configFile); os.IsNotExist(err) {
-			writeDefaultConfigFile(home,configFile)
+			writeDefaultConfigFile(home, configFile)
 		}
 
 		viper.SetConfigFile(configFile)
 		viper.SetDefault("shell", os.Getenv("SHELL"))
 		viper.SetDefault("preserveProfile", true)
+		viper.SetDefault("ssmRegion", "us-east-1")
 	}
 
 	viper.AutomaticEnv()

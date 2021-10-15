@@ -12,6 +12,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/julienlevasseur/profiler/pkg/ssm"
 	"github.com/spf13/viper"
 )
 
@@ -42,6 +43,20 @@ func FileExist(file string) bool {
 	}
 
 	return false
+}
+
+/*AppendToFile append a string to a file.
+It's used by the `add` command to properly append
+new variables to profiles. It also create a profile
+file if it does not exists.*/
+func AppendToFile(filePath string, value string) error {
+	f, err := os.OpenFile(filePath,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	defer f.Close()
+	_, err = f.WriteString(value)
+
+	return err
 }
 
 /*ParseYaml parse the given yaml file */
@@ -99,8 +114,6 @@ func SetEnvironment(yml KeyValueMap) {
 		panic(err)
 	}
 
-	shell := viper.GetString("shell")
-
 	for k, v := range yml {
 
 		file, err := os.OpenFile(profilerFile, os.O_APPEND|os.O_WRONLY, 0644)
@@ -119,8 +132,6 @@ func SetEnvironment(yml KeyValueMap) {
 		os.Setenv(k, v)
 	}
 
-	binary, err := exec.LookPath(shell)
-
 	if err != nil {
 		panic(err)
 	}
@@ -133,6 +144,9 @@ func SetEnvironment(yml KeyValueMap) {
 		}
 	}
 
+	shell := viper.GetString("shell")
+	binary, err := exec.LookPath(shell)
+
 	env := os.Environ()
 	args := []string{shell}
 	err = syscall.Exec(binary, args, env)
@@ -142,6 +156,7 @@ func SetEnvironment(yml KeyValueMap) {
 	}
 }
 
+/*GetProfile retrieve the profile from yaml definition*/
 func GetProfile(profileFolder string, profileName string) KeyValueMap {
 	return ParseYaml(
 		fmt.Sprintf(
@@ -152,9 +167,7 @@ func GetProfile(profileFolder string, profileName string) KeyValueMap {
 	)
 }
 
-/*Use return a map of all the key:value set found in the local accpeted
-* files, including the given profile
- */
+/*Use set the environment for the given profile*/
 func Use(profilesFolder string, profileName string) {
 	envVars := make(map[string]string)
 	// parse .profiler file:
@@ -181,6 +194,16 @@ func Use(profilesFolder string, profileName string) {
 	}
 
 	SetEnvironment(envVars)
+}
+
+/*UseSSMProfile set the environment for the given remote AWS SSM profile*/
+func UseSSMProfile(profileName string) {
+	vars, err := ssm.GetProfile(profileName)
+	if err != nil {
+		panic(err)
+	}
+
+	SetEnvironment(vars)
 }
 
 /*UseNoProfile return a map of all the key:value set found in the local accepted

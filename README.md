@@ -42,7 +42,7 @@ export PROFILER_CFG="/my/prefered/path"
 
 The profile file may contain the `shell` attribute. This attribute will never be exported as env variable. Its used to specify in which shell you want to spawn your profile.
 
-You can also set a `shell` in the configuration file. This can be helpful if you want to use a diferent shell than your current one when you use a profile.
+You can also set a `shell` in the configuration file. This can be helpful if you want to use a different shell than your current one when you use a profile.
 
 > **Note**
 >
@@ -57,7 +57,6 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 
 This option allow you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
 With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
-
 
 ###### Example of a configuration file
 
@@ -123,6 +122,19 @@ Example of `.env` file:
 export FOO=bar
 ```
 
+### Remote storage
+
+From version 3.4.0, it's now possible to store profiles remotely.
+The two supported provider (so far) are:
+
+#### AWS SSM
+
+##### Credentials
+
+Obviously, to access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
+credentials.
+To configure the AWS credentials, you can refer to the AWS SDK documentation: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
+
 ### The profiler command
 
 * `profiler` - Search for env files and source them if they exists.
@@ -157,6 +169,7 @@ AWS_SECRET_ACCESS_KEY:
 AWS_DEFAULT_REGION: us-east-1
 CONSUL_HTTP_TOKEN: 
 ```
+
 I'm using the `profile_name` var in my PS1 to display on my shell which profile is currently in use :
 
 ![usage_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/usage_demo.png)
