@@ -1,4 +1,4 @@
-# 3,4,0
+# 3.4.0
 
 - Add `add` command to append variables to profiles or creating empty new profiles via the `profiler` CLI.
 - Add remote profiles support.
