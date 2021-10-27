@@ -1,6 +1,8 @@
 package ssm
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	awsssm "github.com/PaddleHQ/go-aws-ssm"
@@ -52,10 +54,27 @@ func getParameters(path string) ([]*ssm.Parameter, error) {
 
 	getParametersByPathOutput, err := svc.GetParametersByPath(input)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	return getParametersByPathOutput.Parameters, nil
+}
+
+/*ProfileExist return a boolean representation of the given profile existence*/
+func ProfileExist(profileName string) (bool, error) {
+	profiles, err := ListProfiles()
+	if err != nil {
+		return false, err
+	}
+
+	for _, profile := range profiles {
+		if profile == profileName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func profileAlreadyListed(profiles []string, searchedProfile string) bool {
@@ -92,6 +111,7 @@ func ListProfiles() ([]string, error) {
 	return ssmProfiles, nil
 }
 
+/*ShowProfile list the Env vars stored in a profile*/
 func ShowProfile(profileName string) ([]string, error) {
 	params, err := getParameters("/profiler/" + profileName)
 	if err != nil {
@@ -121,4 +141,65 @@ func GetProfile(profileName string) (map[string]string, error) {
 	}
 
 	return vars, nil
+}
+
+/*AddParameter is used to create either Profile or Env var in SSM*/
+func AddParameter(paramName string, paramValue string) error {
+	mySession := session.Must(session.NewSession())
+
+	// Create a SSM client from just a session.
+	svc := ssm.New(
+		mySession, aws.NewConfig().WithRegion(
+			viper.GetString("ssmRegion"),
+		),
+	)
+
+	var tags []*ssm.Tag
+	tag := &ssm.Tag{
+		Key:   aws.String("profiler"),
+		Value: aws.String("true"),
+	}
+	tags = append(tags, tag)
+
+	/* If only paramName is provided, Profiler assumes that it needs to create
+	a profile and not an Env var*/
+	if paramValue == "" {
+		paramName = paramName + "/"
+	}
+
+	var input = &ssm.PutParameterInput{}
+	input.SetName("/profiler/" + paramName)
+	input.SetType("String")
+	input.SetTags(tags)
+	input.SetTier(viper.GetString("ssmParameterTier"))
+	input.SetValue(paramValue)
+
+	_, err := svc.PutParameter(input)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/*RemoveParameter is used to delete a Profile or Env var from SSM*/
+func RemoveParameter(paramName string) error {
+	mySession := session.Must(session.NewSession())
+
+	// Create a SSM client from just a session.
+	svc := ssm.New(
+		mySession, aws.NewConfig().WithRegion(
+			viper.GetString("ssmRegion"),
+		),
+	)
+
+	var input = &ssm.DeleteParameterInput{}
+	input.SetName(paramName)
+
+	_, err := svc.DeleteParameter(input)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

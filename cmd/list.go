@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/julienlevasseur/profiler/pkg/profile"
@@ -38,7 +39,8 @@ var listCmd = &cobra.Command{
 				// List SSM Parameter Store Profiles
 				profiles, err := ssm.ListProfiles()
 				if err != nil {
-					panic(err)
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(1)
 				}
 
 				for _, p := range profiles {

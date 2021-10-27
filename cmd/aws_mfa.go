@@ -30,7 +30,8 @@ var awsMFACmd = &cobra.Command{
 		})
 
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
 		// Create a IAM service client:
@@ -43,7 +44,8 @@ var awsMFACmd = &cobra.Command{
 		)
 
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
 		var mfaDeviceSn string

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/julienlevasseur/profiler/pkg/ssm"
@@ -28,7 +29,8 @@ var showCmd = &cobra.Command{
 				for _, p := range args {
 					vars, err := ssm.ShowProfile(p)
 					if err != nil {
-						panic(err)
+						fmt.Fprintln(os.Stderr, err)
+						os.Exit(1)
 					}
 
 					displayProfileVarNames(p, vars)

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -25,31 +26,83 @@ var addCmd = &cobra.Command{
 			os.Exit(0)
 		} else {
 			if args[0] == "ssm" {
-				value, err := ssm.Get()
+				// Check first if the given profile exists
+				profileExist, err := ssm.ProfileExist(args[1])
 				if err != nil {
-					panic(err)
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(1)
 				}
 
-				fmt.Println(value)
+				if !profileExist {
+					err = ssm.AddParameter(args[1]+"/profile_name", args[1])
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						os.Exit(1)
+					}
+				}
+
+				if len(args) > 2 {
+					if len(args) < 4 { // If no value provided:
+						err := errors.New("Please provide a value for the variable")
+						fmt.Fprintln(os.Stderr, err)
+						os.Exit(1)
+					}
+					err = ssm.AddParameter(args[1]+"/"+args[2], args[3])
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						os.Exit(1)
+					}
+				}
+
 			} else if args[0] == "consul" {
 				// Adding a env var to a Consul profile
 				fmt.Println("Not implemented yet")
 
 			} else {
+				profileName := args[0]
+				filePath := viper.GetString("profilerFolder") + "/." + profileName + ".yml"
+
 				// Local profile
-				var value string
+				var key string
 				if len(args) <= 2 {
+					key = ""
+				} else {
+					key = args[1]
+				}
+
+				var value string
+				if len(args) < 3 {
 					value = ""
 				} else {
-					value = args[1]
+					value = args[2]
 				}
-				err := profile.AppendToFile(
-					viper.GetString("profilerFolder")+"/."+args[0]+".yml",
-					value+"\n",
+
+				alreadyExist, _, err := profile.FoundInfFile(
+					filePath,
+					key,
+				)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(1)
+				}
+				if alreadyExist {
+					fmt.Fprintln(
+						os.Stderr,
+						fmt.Sprintf("The provided variable already exist in %s", profileName),
+					)
+					os.Exit(1)
+				}
+
+				err = profile.AppendToFile(
+					filePath,
+					profileName,
+					key,
+					value,
 				)
 
 				if err != nil {
-					panic(err)
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(1)
 				}
 			}
 		}

@@ -27,7 +27,7 @@ environment variables.`,
 /*Execute is used in main.go*/
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -71,6 +71,7 @@ func InitConfig() {
 		viper.SetDefault("shell", os.Getenv("SHELL"))
 		viper.SetDefault("preserveProfile", true)
 		viper.SetDefault("ssmRegion", "us-east-1")
+		viper.SetDefault("ssmParameterTier", "Standard")
 	}
 
 	viper.AutomaticEnv()
