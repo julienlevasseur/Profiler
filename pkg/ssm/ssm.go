@@ -5,40 +5,13 @@ import (
 	"os"
 	"strings"
 
-	awsssm "github.com/PaddleHQ/go-aws-ssm"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/viper"
 )
 
-func Get() (string, error) {
-
-	pmstore, err := awsssm.NewParameterStore(
-		&aws.Config{
-
-			Region: aws.String(viper.GetString("ssmRegion")),
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-	//Requesting the base path
-	params, err := pmstore.GetAllParametersByPath("/profiler/test_ssm_profile/", true)
-	if err != nil {
-		return "", err
-	}
-
-	//And getting a specific value
-	return params.GetValueByName("FOO"), nil
-}
-
-type Parameter struct {
-	Name  string
-	Value string
-}
-
-func getParameters(path string) ([]*ssm.Parameter, error) {
+func newSSMService() *ssm.SSM {
 	mySession := session.Must(session.NewSession())
 
 	// Create a SSM client from just a session.
@@ -47,6 +20,12 @@ func getParameters(path string) ([]*ssm.Parameter, error) {
 			viper.GetString("ssmRegion"),
 		),
 	)
+
+	return svc
+}
+
+func getParameters(path string) ([]*ssm.Parameter, error) {
+	svc := newSSMService()
 
 	var input = &ssm.GetParametersByPathInput{}
 	input.SetPath(path)
@@ -145,14 +124,7 @@ func GetProfile(profileName string) (map[string]string, error) {
 
 /*AddParameter is used to create either Profile or Env var in SSM*/
 func AddParameter(paramName string, paramValue string) error {
-	mySession := session.Must(session.NewSession())
-
-	// Create a SSM client from just a session.
-	svc := ssm.New(
-		mySession, aws.NewConfig().WithRegion(
-			viper.GetString("ssmRegion"),
-		),
-	)
+	svc := newSSMService()
 
 	var tags []*ssm.Tag
 	tag := &ssm.Tag{
@@ -184,14 +156,7 @@ func AddParameter(paramName string, paramValue string) error {
 
 /*RemoveParameter is used to delete a Profile or Env var from SSM*/
 func RemoveParameter(paramName string) error {
-	mySession := session.Must(session.NewSession())
-
-	// Create a SSM client from just a session.
-	svc := ssm.New(
-		mySession, aws.NewConfig().WithRegion(
-			viper.GetString("ssmRegion"),
-		),
-	)
+	svc := newSSMService()
 
 	var input = &ssm.DeleteParameterInput{}
 	input.SetName(paramName)

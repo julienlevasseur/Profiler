@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/julienlevasseur/profiler/pkg/profile"
-	"github.com/julienlevasseur/profiler/pkg/ssm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,85 +23,50 @@ var addCmd = &cobra.Command{
 			cmd.Help()
 			os.Exit(0)
 		} else {
-			if args[0] == "ssm" {
-				// Check first if the given profile exists
-				profileExist, err := ssm.ProfileExist(args[1])
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					os.Exit(1)
-				}
+			profileName := args[0]
+			filePath := viper.GetString("profilerFolder") + "/." + profileName + ".yml"
 
-				if !profileExist {
-					err = ssm.AddParameter(args[1]+"/profile_name", args[1])
-					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
-						os.Exit(1)
-					}
-				}
-
-				if len(args) > 2 {
-					if len(args) < 4 { // If no value provided:
-						err := errors.New("Please provide a value for the variable")
-						fmt.Fprintln(os.Stderr, err)
-						os.Exit(1)
-					}
-					err = ssm.AddParameter(args[1]+"/"+args[2], args[3])
-					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
-						os.Exit(1)
-					}
-				}
-
-			} else if args[0] == "consul" {
-				// Adding a env var to a Consul profile
-				fmt.Println("Not implemented yet")
-
+			// Local profile
+			var key string
+			if len(args) <= 2 {
+				key = ""
 			} else {
-				profileName := args[0]
-				filePath := viper.GetString("profilerFolder") + "/." + profileName + ".yml"
+				key = args[1]
+			}
 
-				// Local profile
-				var key string
-				if len(args) <= 2 {
-					key = ""
-				} else {
-					key = args[1]
-				}
+			var value string
+			if len(args) < 3 {
+				value = ""
+			} else {
+				value = args[2]
+			}
 
-				var value string
-				if len(args) < 3 {
-					value = ""
-				} else {
-					value = args[2]
-				}
-
-				alreadyExist, _, err := profile.FoundInfFile(
-					filePath,
-					key,
+			alreadyExist, _, err := profile.FoundInfFile(
+				filePath,
+				key,
+			)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			if alreadyExist {
+				fmt.Fprintln(
+					os.Stderr,
+					fmt.Sprintf("The provided variable already exist in %s", profileName),
 				)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					os.Exit(1)
-				}
-				if alreadyExist {
-					fmt.Fprintln(
-						os.Stderr,
-						fmt.Sprintf("The provided variable already exist in %s", profileName),
-					)
-					os.Exit(1)
-				}
+				os.Exit(1)
+			}
 
-				err = profile.AppendToFile(
-					filePath,
-					profileName,
-					key,
-					value,
-				)
+			err = profile.AppendToFile(
+				filePath,
+				profileName,
+				key,
+				value,
+			)
 
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					os.Exit(1)
-				}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 		}
 	},

@@ -17,8 +17,6 @@ var useCmd = &cobra.Command{
 		} else if args[0] == "help" {
 			cmd.Help()
 			os.Exit(0)
-		} else if args[0] == "ssm" {
-			profile.UseSSMProfile(args[1])
 		} else {
 			profile.Use(
 				viper.GetString("profilerFolder"),

@@ -38,7 +38,7 @@ These profile files have to be located in `profilerFolder` and named like `.FooB
 
 A profile stored in SSM will be split in multiple parameters:
 
-- the profile name (created by default when the profile is created with `profile ssm add`)
+- the profile name (created by default when the profile is created with `profiler ssm add`)
 - one parameter per variable contained in the profile
 
 Example:
@@ -187,6 +187,7 @@ To configure the AWS credentials, you can refer to the AWS SDK documentation: ht
 * `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
 * `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them.
 * `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
+* `profiler` `ssm` - Interact with remote profiles stored in AWS SSM.
 * `profiler` `help` - Display the help message.
 
 ## Tips

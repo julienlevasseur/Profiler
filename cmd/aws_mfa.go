@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
-
 	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var awsMFACmd = &cobra.Command{
@@ -25,8 +24,8 @@ var awsMFACmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(os.Getenv("AWS_DEFAULT_REGION")),
+		session, err := session.NewSession(&aws.Config{
+			Region: aws.String(viper.GetString("ssmRegion")),
 		})
 
 		if err != nil {
@@ -35,7 +34,7 @@ var awsMFACmd = &cobra.Command{
 		}
 
 		// Create a IAM service client:
-		svc := iam.New(sess)
+		svc := iam.New(session)
 
 		mfaDevices, err := svc.ListMFADevices(
 			&iam.ListMFADevicesInput{
@@ -55,7 +54,7 @@ var awsMFACmd = &cobra.Command{
 		}
 
 		// Create a STS service client"
-		stsSvc := sts.New(sess)
+		stsSvc := sts.New(session)
 		awsCreds, err := stsSvc.GetSessionToken(
 			&sts.GetSessionTokenInput{
 				SerialNumber: aws.String(mfaDeviceSn),
