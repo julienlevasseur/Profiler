@@ -74,6 +74,9 @@ func InitConfig() {
 		viper.SetDefault("preserveProfile", true)
 		viper.SetDefault("ssmRegion", "us-east-1")
 		viper.SetDefault("ssmParameterTier", "Standard")
+		viper.SetDefault("consulAddress", "127.0.0.1:8500")
+		viper.SetDefault("consulToken", "")
+		viper.SetDefault("consulTokenFile", "")
 	}
 
 	viper.AutomaticEnv()
