@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/julienlevasseur/profiler/pkg/ssm"
 	"github.com/spf13/viper"
 )
 
@@ -30,18 +32,94 @@ func ListFiles(folder string, extension string) []string {
 
 	files, err := filepath.Glob(folder + "/" + extension)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	return files
 }
 
 /*FileExist return a boolean representing if the given file exists*/
 func FileExist(file string) bool {
-	if _, err := os.Stat(file); err == nil {
-		return true
+	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+		return false
 	}
 
-	return false
+	return true
+}
+
+/*AppendToFile append a string to a file.
+It's used by the `add` command to properly append
+new variables to profiles. It also create a profile
+file if it does not exists.*/
+func AppendToFile(filePath, profileName, key, value string) error {
+
+	newProfile := false
+
+	if !FileExist(filePath) {
+		newProfile = true
+	}
+
+	f, err := os.OpenFile(filePath,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	defer f.Close()
+
+	if newProfile {
+		_, err = f.WriteString(
+			fmt.Sprintf("profile_name: %s\n", profileName),
+		)
+	}
+
+	if key != "" && value != "" {
+		_, err = f.WriteString(fmt.Sprintf("%s: %s\n", key, value))
+	}
+
+	return err
+}
+
+func FoundInfFile(filePath, match string) (bool, int, error) {
+	input, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return false, 0, err
+	}
+
+	lines := strings.Split(string(input), "\n")
+
+	for i, line := range lines {
+		if strings.Contains(line, match) {
+			return true, i, nil
+		}
+	}
+
+	return false, 0, nil
+}
+
+/*RemoveFromFile remove a line containing the match string from the given file*/
+func RemoveFromFile(filePath, match string) error {
+	input, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(input), "\n")
+	_, lineNumber, err := FoundInfFile(filePath, match)
+
+	for i := range lines {
+		if i == lineNumber {
+			lines[i] = ""
+		}
+	}
+	// Rebuild the file content with newline at the end of each lines:
+	output := strings.Join(lines, "\n")
+	// Because of the empty line left by the match removal, the following line
+	// removes lines that only contains newline char:
+	output = strings.Replace(output, "\n\n", "\n", -1)
+	// Write the updated content to the profile file:
+	err = ioutil.WriteFile(filePath, []byte(output), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 /*ParseYaml parse the given yaml file */
@@ -49,12 +127,14 @@ func ParseYaml(filename string) KeyValueMap {
 	var y KeyValueMap
 	source, err := ioutil.ReadFile((filename))
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	err = yaml.Unmarshal(source, &y)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	return y
@@ -65,7 +145,8 @@ func ParseEnvrc(filename string) KeyValueMap {
 	envrcVars := make(map[string]string)
 	file, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	defer file.Close()
@@ -83,7 +164,8 @@ func ParseEnvrc(filename string) KeyValueMap {
 	}
 
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	return envrcVars
@@ -96,52 +178,58 @@ func SetEnvironment(yml KeyValueMap) {
 	d := []byte("")
 	err := ioutil.WriteFile(profilerFile, d, 0644)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-
-	shell := viper.GetString("shell")
 
 	for k, v := range yml {
 
 		file, err := os.OpenFile(profilerFile, os.O_APPEND|os.O_WRONLY, 0644)
 
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
 		defer file.Close()
 
 		str := fmt.Sprintf("export %s=\"%v\"\n", k, v)
 		if _, err = file.WriteString(str); err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
 		os.Setenv(k, v)
 	}
 
-	binary, err := exec.LookPath(shell)
-
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	if viper.GetBool("preserveProfile") == false {
 		err := os.Remove(".profiler")
 
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 	}
+
+	shell := viper.GetString("shell")
+	binary, err := exec.LookPath(shell)
 
 	env := os.Environ()
 	args := []string{shell}
 	err = syscall.Exec(binary, args, env)
 
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
+/*GetProfile retrieve the profile from yaml definition*/
 func GetProfile(profileFolder string, profileName string) KeyValueMap {
 	return ParseYaml(
 		fmt.Sprintf(
@@ -152,9 +240,7 @@ func GetProfile(profileFolder string, profileName string) KeyValueMap {
 	)
 }
 
-/*Use return a map of all the key:value set found in the local accpeted
-* files, including the given profile
- */
+/*Use set the environment for the given profile*/
 func Use(profilesFolder string, profileName string) {
 	envVars := make(map[string]string)
 	// parse .profiler file:
@@ -181,6 +267,17 @@ func Use(profilesFolder string, profileName string) {
 	}
 
 	SetEnvironment(envVars)
+}
+
+/*UseSSMProfile set the environment for the given remote AWS SSM profile*/
+func UseSSMProfile(profileName string) {
+	vars, err := ssm.GetProfile(profileName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	SetEnvironment(vars)
 }
 
 /*UseNoProfile return a map of all the key:value set found in the local accepted

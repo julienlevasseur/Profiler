@@ -1,3 +1,9 @@
+# 3.4.0
+
+- Add `add` command to append variables to profiles or creating empty new profiles via the `profiler` CLI.
+- Add remote profiles support.
+- Add AWS SSM Parameter Store as remote profiles repository.
+
 # 3.3.0
 
 - Add a `show` argument to display exported profiles variable names.

@@ -25,7 +25,9 @@ var showCmd = &cobra.Command{
 					p,
 				)
 
+				// Display Profile's name:
 				fmt.Printf("%s:\n", p)
+				// Display each Profile's env var name:
 				for _, v := range vars {
 					fmt.Printf("- %s\n", v)
 				}

@@ -3,8 +3,19 @@
 ![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
 ![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
 
-Profiler is simple tool that allow you to manage your environment variables via profiles and distributed files.
+Profiler is CLI tool to organize your environment variables as profiles.
+It is not intended to manage software configuration (look at [viper](github.com/spf13/viper) for this), it's focused on developer environment to set temporary a specific environment.
 
+> **NOTE**
+> Due to the scope of exported variable in shells, Profiler needs to spawn a new shell instance
+> when using a profile.
+> This has the advantage to allow you to simply exit the spawned instance to disable the profile
+> activation, but, it limits the access to the shell history. You ca refer to your shell
+> documentation to find the best way to share history between your shell levels.
+
+From v3.4.0, Profiler support external source for profiles (only SSM for now).
+This is useful if you share environment variable in your team or if you want to use a specific
+set of of env vars on multiple computers.
 ## Usage
 
 ### The profile file
@@ -21,11 +32,27 @@ CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 TF_VAR_CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 ```
 
-Those profile files have to be located in `` and named like `.FooBar.yml`.
+These profile files have to be located in `profilerFolder` and named like `.FooBar.yml`.
+
+### The SSM profile
+
+A profile stored in SSM will be split in multiple parameters:
+
+- the profile name (created by default when the profile is created with `profiler ssm add`)
+- one parameter per variable contained in the profile
+
+Example:
+
+|  Name | Type  |  Value | Tags |
+|-------|-------|--------|------|
+| /profiler/ProfileName/profile_name | String | $ProfileName | `profiler: true` |
+| /profiler/ProfileName/Key | String | $Value | `profiler: true` |
+
 
 ### The config file
 
 The config file is located by default in `~/.profiler_cfg.yml`.
+
 You can override this value by setting the `PROFILER_CFG` env var:
 
 ```bash
@@ -42,7 +69,7 @@ export PROFILER_CFG="/my/prefered/path"
 
 The profile file may contain the `shell` attribute. This attribute will never be exported as env variable. Its used to specify in which shell you want to spawn your profile.
 
-You can also set a `shell` in the configuration file. This can be helpful if you want to use a diferent shell than your current one when you use a profile.
+You can also set a `shell` in the configuration file. This can be helpful if you want to use a different shell than your current one when you use a profile.
 
 > **Note**
 >
@@ -50,14 +77,15 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 
 > **Note**
 >
-> Profiler hsa been tested only with bash and zsh.
-> Any contribution to validate other shells are welcomed.
+> Profiler has been tested only with bash and zsh.
+> Any contribution to validate other shells are welcome.
 
 ##### preserveProfile
 
 This option allow you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
 With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
 
+Reusing an already exported profile from a directory is done as simply as: `profiler use`.
 
 ###### Example of a configuration file
 
@@ -69,18 +97,33 @@ preserveProfile: true # Optional (true by default)
 
 ### The profile definition
 
+#### Via the profiler command
+
+The `profiler add` command allow you to create profiles and add variable to them:
+
+```bash
+profiler add MyProfile
+```
+will create a profile that only export its name (`profile_name` var)
+
+```bash
+profiler add MyProfile Key Value
+```
+will add the Key=Value env var to MyProfile (if the profile does not exists it will be created).
+
+#### Manually
+
 If you want to set env vars or profiles, you can create as many profile files as you want into the `profilerFolder`.
 
 > **Note**
 >
-> **Be carefull !** The profiles files have to be hidden (so prefixed by a `.`)
+> **Be careful !** The profiles files have to be hidden (so prefixed by a `.`)
 >
 > e.g:
 > ```bash
 >/home/$USER/.profiles/
 >└── .example-aws-us-east-1.yml
 >```
-> 
 
 ### The yaml env file
 
@@ -123,19 +166,34 @@ Example of `.env` file:
 export FOO=bar
 ```
 
+### Remote storage
+
+From version 3.4.0, it's now possible to store profiles remotely.
+The two supported provider (so far) are:
+
+#### AWS SSM
+
+##### Credentials
+
+Obviously, to access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
+credentials.
+To configure the AWS credentials, you can refer to the AWS SDK documentation: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
+
 ### The profiler command
 
 * `profiler` - Search for env files and source them if they exists.
 * `profiler` `list` - list the available profiles.
-* `profiler` `use` - Search for .profiler file and env files and export the generated profile from them.
-* `profiler` `use` `${profile_name}` - Actually use the specified profile.
+* `profiler` `add` `${profile_name}` `${key}` `${value}` - create the given profile and or add the given env var to the profile.
+* `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
+* `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them.
 * `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
+* `profiler` `ssm` - Interact with remote profiles stored in AWS SSM.
 * `profiler` `help` - Display the help message.
 
 ## Tips
 
 > **Note**
-> I strongly recommand, for convenience, for you to add `.profiler` field to your global `.gitignore`.
+> I strongly recommend, for convenience, for you to add `.profiler` field to your global `.gitignore`.
 
 ## How I'm using it
 
@@ -145,7 +203,8 @@ So, I define my cloud providers env vars per profile :
 
 * Work AWS
 * Work OpenStack
-* Personnal AWS
+* Personal AWS
+* Personal Nomad/Consul Cluster
 ...
 
 In each of these, I have something like :
@@ -157,6 +216,7 @@ AWS_SECRET_ACCESS_KEY:
 AWS_DEFAULT_REGION: us-east-1
 CONSUL_HTTP_TOKEN: 
 ```
+
 I'm using the `profile_name` var in my PS1 to display on my shell which profile is currently in use :
 
 ![usage_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/usage_demo.png)

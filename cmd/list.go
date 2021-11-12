@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/julienlevasseur/profiler/pkg/profile"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

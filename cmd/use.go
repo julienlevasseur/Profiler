@@ -3,9 +3,9 @@ package cmd
 import (
 	"os"
 
+	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 var useCmd = &cobra.Command{

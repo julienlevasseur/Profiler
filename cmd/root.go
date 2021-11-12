@@ -27,13 +27,15 @@ environment variables.`,
 /*Execute is used in main.go*/
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func writeDefaultConfigFile(homeFolder, configFile string) {
-	defaultConfig := []byte(fmt.Sprintf("profilerFolder: %s/.profiles", homeFolder))
+	defaultConfig := []byte(
+		fmt.Sprintf("profilerFolder: %s/.profiles", homeFolder),
+	)
 	err := ioutil.WriteFile(configFile, defaultConfig, 0644)
 	if err != nil {
 		fmt.Println(err)
@@ -52,7 +54,7 @@ func InitConfig() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	
+
 	if os.Getenv("PROFILER_CFG") != "" {
 		configFile := os.Getenv("PROFILER_CFG")
 		viper.SetConfigFile(configFile)
@@ -61,15 +63,17 @@ func InitConfig() {
 		}
 	} else {
 		// If there is no .profiler_cfg.yml file (like. for the first execution)
-		// let's create a default one. 
+		// let's create a default one.
 		configFile := fmt.Sprintf("%s/.profiler_cfg.yml", home)
 		if _, err := os.Stat(configFile); os.IsNotExist(err) {
-			writeDefaultConfigFile(home,configFile)
+			writeDefaultConfigFile(home, configFile)
 		}
 
 		viper.SetConfigFile(configFile)
 		viper.SetDefault("shell", os.Getenv("SHELL"))
 		viper.SetDefault("preserveProfile", true)
+		viper.SetDefault("ssmRegion", "us-east-1")
+		viper.SetDefault("ssmParameterTier", "Standard")
 	}
 
 	viper.AutomaticEnv()

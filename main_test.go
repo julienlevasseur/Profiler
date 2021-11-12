@@ -25,7 +25,8 @@ func createFolder(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, 0755)
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 	}
 }
@@ -132,6 +133,34 @@ var _ = Describe("Profiler", func() {
 
 		It("should contain the key", func() {
 			Expect(s).To(Equal([]string{"key"}))
+		})
+	})
+
+	Context("AppendToFile", func() {
+
+		It("should add a line to test.yml", func() {
+			profile.AppendToFile(
+				profilesPath+".test.yml",
+				"test",
+				"aaaa",
+				"bbbb",
+			)
+			s = profile.ShowProfile(profilesPath, "test")
+			Expect(s).To(ContainElement("key"))
+			Expect(s).To(ContainElement("aaaa"))
+		})
+	})
+
+	Context("RemoveFromFile", func() {
+
+		It("should remove a line from test.yml", func() {
+			profile.RemoveFromFile(
+				profilesPath+".test.yml",
+				"aaaa",
+			)
+			s = profile.ShowProfile(profilesPath, "test")
+			Expect(s).To(ContainElement("key"))
+			Expect(s).To(Not(ContainElement("aaaa")))
 		})
 	})
 
