@@ -2,7 +2,7 @@ package consul
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
@@ -11,7 +11,7 @@ import (
 
 func stringToByteSlice(value string) ([]byte, error) {
 	r := strings.NewReader(value)
-	b, err := io.ReadAll(r)
+	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return []byte{}, err
 	}
