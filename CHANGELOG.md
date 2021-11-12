@@ -1,3 +1,11 @@
+# 3.5.1
+
+- Update dependencies
+
+# 3.5.0
+
+- Add Consul KV store as remote profiles repository.
+
 # 3.4.0
 
 - Add `add` command to append variables to profiles or creating empty new profiles via the `profiler` CLI.
