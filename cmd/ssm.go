@@ -39,15 +39,13 @@ var ssmAddCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println(len(args))
-		fmt.Println(args)
-
 		if len(args) > 1 {
 			if len(args) < 3 { // If no value provided:
 				err := errors.New("Please provide a value for the variable")
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
+
 			err = ssm.AddParameter(args[0]+"/"+args[1], args[2])
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
