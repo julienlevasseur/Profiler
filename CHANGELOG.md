@@ -1,3 +1,7 @@
+# 3.4.1
+
+- Add Consul remote profiles storage support.
+
 # 3.4.0
 
 - Add `add` command to append variables to profiles or creating empty new profiles via the `profiler` CLI.

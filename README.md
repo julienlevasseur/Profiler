@@ -13,7 +13,7 @@ It is not intended to manage software configuration (look at [viper](github.com/
 > activation, but, it limits the access to the shell history. You ca refer to your shell
 > documentation to find the best way to share history between your shell levels.
 
-From v3.4.0, Profiler support external source for profiles (only SSM for now).
+From v3.4.0, Profiler support external sources for profiles.
 This is useful if you share environment variable in your team or if you want to use a specific
 set of of env vars on multiple computers.
 ## Usage
@@ -48,6 +48,19 @@ Example:
 | /profiler/ProfileName/profile_name | String | $ProfileName | `profiler: true` |
 | /profiler/ProfileName/Key | String | $Value | `profiler: true` |
 
+### The Consul profile
+
+A profile stored in Consul will be in a `profiler` KV folder with a Key per
+profile and YAML Value.
+
+Example:
+
+Key: `/profiler/example_consul_profile`
+Value:
+```yaml
+profile_name: test_consul
+FOO: BAR
+```
 
 ### The config file
 
@@ -175,10 +188,25 @@ The two supported provider (so far) are:
 
 ##### Credentials
 
-Obviously, to access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
+To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
 credentials.
 To configure the AWS credentials, you can refer to the AWS SDK documentation: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
 
+#### Consul
+
+To access profiles stored in the Consul KV Store, Consul credentials must be provided via profiler_cfg.
+
+Supported Consul configuration options:
+
+|  Name | Value example |
+|-------|-------|
+| consulAddress | http://W.X.Y.Z:8500 |
+| consulToken (optional) | 3d4a9009-eef0-4444-92c4-322e6a853385 |
+| consulTokenFile (optional) | /home/user/.consul_token |
+
+> **Note:**
+> 
+> The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.
 ### The profiler command
 
 * `profiler` - Search for env files and source them if they exists.
