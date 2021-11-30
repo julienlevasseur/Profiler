@@ -1,3 +1,7 @@
+# 3.4.2
+
+- Add support for .yaml files (in addition to .yml) for local profiles.
+
 # 3.4.1
 
 - Add Consul remote profiles storage support.

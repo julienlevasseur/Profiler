@@ -73,6 +73,7 @@ var _ = Describe("Profiler", func() {
 			profilesPath + ".env.yml":     "test/.env.yml",
 			profilesPath + ".testrc":      "test/.testrc",
 			profilesPath + ".test.yml":    "test/.test.yml",
+			profilesPath + ".test.yaml":   "test/.test.yaml",
 			altProfilesPath + ".env.yml":  "test/.env.yml",
 			altProfilesPath + ".testrc":   "test/.testrc",
 			altProfilesPath + ".test.yml": "test/.test.yml",
@@ -98,14 +99,15 @@ var _ = Describe("Profiler", func() {
 			Expect(reflect.TypeOf(files).String()).To(Equal("[]string"))
 		})
 
-		It("should contain 3 elements", func() {
-			Expect(files).To(HaveLen(3))
+		It("should contain 4 elements", func() {
+			Expect(files).To(HaveLen(4))
 		})
 
-		It("should contain .env.yml, .testrc & .test.yml", func() {
+		It("should contain .env.yml, .testrc, .test.yml & .test.yaml", func() {
 			Expect(files).To(ContainElement(profilesPath + ".env.yml"))
 			Expect(files).To(ContainElement(profilesPath + ".testrc"))
 			Expect(files).To(ContainElement(profilesPath + ".test.yml"))
+			Expect(files).To(ContainElement(profilesPath + ".test.yaml"))
 		})
 	})
 
