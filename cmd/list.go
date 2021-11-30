@@ -18,6 +18,13 @@ var listCmd = &cobra.Command{
 			".*.yml",
 		)
 
+		yamlFiles := profile.ListFiles(
+			viper.GetString("profilerFolder"),
+			"*.yaml",
+		)
+
+		files = append(files, yamlFiles...)
+
 		for _, file := range files {
 			fmt.Println(
 				strings.Split(
@@ -27,7 +34,7 @@ var listCmd = &cobra.Command{
 							"%s/.",
 							viper.GetString("profilerFolder"),
 						),
-					)[1], ".yml",
+					)[1], ".y", // The separator here is '.y' to support both .yml and .yaml files
 				)[0],
 			)
 		}
