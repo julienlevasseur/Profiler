@@ -16,6 +16,7 @@ It is not intended to manage software configuration (look at [viper](github.com/
 From v3.4.0, Profiler support external sources for profiles.
 This is useful if you share environment variable in your team or if you want to use a specific
 set of of env vars on multiple computers.
+
 ## Usage
 
 ### The profile file
@@ -24,7 +25,6 @@ A profile file is a simple YAML file that represent the vars you need for this p
 
 ```yaml
 profile_name: aws_dev
-shell: /usr/bin/zsh
 AWS_ACCESS_KEY_ID: xxxxxxxxXXXXXxxxxxxxx
 AWS_SECRET_ACCESS_KEY: xxxxxxxxXXXXXxxxxxxxx
 AWS_DEFAULT_REGION: us-east-1
@@ -57,6 +57,7 @@ Example:
 
 Key: `/profiler/example_consul_profile`
 Value:
+
 ```yaml
 profile_name: test_consul
 FOO: BAR
@@ -69,29 +70,14 @@ The config file is located by default in `~/.profiler_cfg.yml`.
 You can override this value by setting the `PROFILER_CFG` env var:
 
 ```bash
-export PROFILER_CFG="/my/prefered/path"
+export PROFILER_CFG="/my/preferred/path"
 ```
 
 > **Note**
-> 
-> If no configuration file is found, a default configuration file will be created poiting the `profilerFolder` attribute to `$HOME/.profiles`.
+>
+> If no configuration file is found, a default configuration file will be created pointing the `profilerFolder` attribute to `$HOME/.profiles`.
 
 #### Configuration options
-
-##### shell
-
-The profile file may contain the `shell` attribute. This attribute will never be exported as env variable. Its used to specify in which shell you want to spawn your profile.
-
-You can also set a `shell` in the configuration file. This can be helpful if you want to use a different shell than your current one when you use a profile.
-
-> **Note**
->
-> The default shell is the current shell.
-
-> **Note**
->
-> Profiler has been tested only with bash and zsh.
-> Any contribution to validate other shells are welcome.
 
 ##### preserveProfile
 
@@ -104,7 +90,6 @@ Reusing an already exported profile from a directory is done as simply as: `prof
 
 ```yml
 profilerFolder: /My/Home/.profiles
-shell: bash               # Optional (current shell by default)
 preserveProfile: true # Optional (true by default)
 ```
 
@@ -117,11 +102,13 @@ The `profiler add` command allow you to create profiles and add variable to them
 ```bash
 profiler add MyProfile
 ```
+
 will create a profile that only export its name (`profile_name` var)
 
 ```bash
 profiler add MyProfile Key Value
 ```
+
 will add the Key=Value env var to MyProfile (if the profile does not exists it will be created).
 
 #### Manually
@@ -146,7 +133,7 @@ When you call `profiler` without arguments, the program will look on the current
 
 When you call `profiler use ${profile}`, the program will also look for `.env/yml` and append its content to the specified profile.
 
-This feature is usefull if you want to have immutable set a vars for a cloud provider (the profile) but specific vars for a specific project, repo, branch, etc
+This feature is useful if you want to have immutable set a vars for a cloud provider (the profile) but specific vars for a specific project, repo, branch, etc
 For example, you can want to set your AWS keys in the `my_aws_account` profile, but having different `AWS_DEFAULT_REGION` or dedicated Terraform vars in several projects.
 To accomplish that, just create a `/etc/profiler/.my_aws_account.yml` profile file and in your repos, a .env.yml per repo with the dedicated set of vars inside.
 
@@ -190,7 +177,7 @@ The two supported provider (so far) are:
 
 To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
 credentials.
-To configure the AWS credentials, you can refer to the AWS SDK documentation: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
+To configure the AWS credentials, you can refer to the AWS SDK documentation: [configuring-sdk/#specifying-credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
 #### Consul
 
@@ -205,18 +192,19 @@ Supported Consul configuration options:
 | consulTokenFile (optional) | /home/user/.consul_token |
 
 > **Note:**
-> 
+>
 > The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.
+
 ### The profiler command
 
-* `profiler` - Search for env files and source them if they exists.
-* `profiler` `list` - list the available profiles.
-* `profiler` `add` `${profile_name}` `${key}` `${value}` - create the given profile and or add the given env var to the profile.
-* `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
-* `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them.
-* `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
-* `profiler` `ssm` - Interact with remote profiles stored in AWS SSM.
-* `profiler` `help` - Display the help message.
+- `profiler` - Search for env files and source them if they exists.
+- `profiler` `list` - list the available profiles.
+- `profiler` `add` `${profile_name}` `${key}` `${value}` - create the given profile and or add the given env var to the profile.
+- `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
+- `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search or .profiler file and env files and export the generated profile from them.
+- `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
+- `profiler` `ssm` - Interact with remote profiles stored in AWS SSM.
+- `profiler` `help` - Display the help message.
 
 ## Tips
 
@@ -225,14 +213,14 @@ Supported Consul configuration options:
 
 ## How I'm using it
 
-Basically I like the idea to run a command that summerize all the env vars I need rather than sourcing a file in a folder that I will have to figure out the location almost every time I need it.
+Basically I like the idea to run a command that summarize all the env vars I need rather than sourcing a file in a folder that I will have to figure out the location almost every time I need it.
 
 So, I define my cloud providers env vars per profile :
 
-* Work AWS
-* Work OpenStack
-* Personal AWS
-* Personal Nomad/Consul Cluster
+- Work AWS
+- Work OpenStack
+- Personal AWS
+- Personal Nomad/Consul Cluster
 ...
 
 In each of these, I have something like :
@@ -272,3 +260,8 @@ KUBE_PASSWORD: ***************
 ## Concept summary
 
 ![concept_summary.png](https://github.com/julienlevasseur/profiler/raw/master/images/concept_summary.png)
+
+> **Note**
+>
+> Profiler has been tested only with bash and zsh.
+> Any contribution to validate other shells are welcome.

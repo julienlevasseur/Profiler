@@ -55,8 +55,10 @@ func InitConfig() {
 		os.Exit(1)
 	}
 
+	var configFile string
+
 	if os.Getenv("PROFILER_CFG") != "" {
-		configFile := os.Getenv("PROFILER_CFG")
+		configFile = os.Getenv("PROFILER_CFG")
 		viper.SetConfigFile(configFile)
 		if _, err := os.Stat(configFile); os.IsNotExist(err) {
 			writeDefaultConfigFile(home, configFile)
@@ -64,23 +66,22 @@ func InitConfig() {
 	} else {
 		// If there is no .profiler_cfg.yml file (like. for the first execution)
 		// let's create a default one.
-		configFile := fmt.Sprintf("%s/.profiler_cfg.yml", home)
+		configFile = fmt.Sprintf("%s/.profiler_cfg.yml", home)
 		if _, err := os.Stat(configFile); os.IsNotExist(err) {
 			writeDefaultConfigFile(home, configFile)
 		}
-
-		viper.SetConfigFile(configFile)
-		viper.SetDefault("shell", os.Getenv("SHELL"))
-		viper.SetDefault("preserveProfile", true)
-		viper.SetDefault("ssmRegion", "us-east-1")
-		viper.SetDefault("ssmParameterTier", "Standard")
-		viper.SetDefault("consulAddress", "127.0.0.1:8500")
-		viper.SetDefault("consulToken", "")
-		viper.SetDefault("consulTokenFile", "")
 	}
 
-	viper.AutomaticEnv()
 	viper.SetConfigType("yaml")
+	viper.SetConfigFile(configFile)
+	viper.AutomaticEnv()
+
+	viper.SetDefault("preserveProfile", true)
+	viper.SetDefault("ssmRegion", "us-east-1")
+	viper.SetDefault("ssmParameterTier", "Standard")
+	viper.SetDefault("consulAddress", "127.0.0.1:8500")
+	viper.SetDefault("consulToken", "")
+	viper.SetDefault("consulTokenFile", "")
 
 	err = viper.ReadInConfig()
 	if err != nil {
