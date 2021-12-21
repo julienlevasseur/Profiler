@@ -1,3 +1,7 @@
+# 3.4.3
+
+- Update dependecies
+
 # 3.4.2
 
 - Add support for .yaml files (in addition to .yml) for local profiles.
