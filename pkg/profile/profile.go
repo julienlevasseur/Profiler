@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/julienlevasseur/profiler/pkg/ssm"
 	"github.com/spf13/viper"
