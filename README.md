@@ -3,19 +3,20 @@
 ![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
 ![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
 
-Profiler is CLI tool to organize your environment variables as profiles.
-It is not intended to manage software configuration (look at [viper](github.com/spf13/viper) for this), it's focused on developer environment to set temporary a specific environment.
+Profiler is a CLI tool to organize your environment variables as profiles.
+It is not intended to manage software configuration (look at [viper](github.com/spf13/viper) for this), it focus on developer environment to set temporary specific environments.
 
 > **NOTE**
 > Due to the scope of exported variable in shells, Profiler needs to spawn a new shell instance
 > when using a profile.
 > This has the advantage to allow you to simply exit the spawned instance to disable the profile
-> activation, but, it limits the access to the shell history. You ca refer to your shell
+> activation, but, it limits the access to the shell history. You can refer to your shell
 > documentation to find the best way to share history between your shell levels.
 
 From v3.4.0, Profiler support external sources for profiles.
 This is useful if you share environment variable in your team or if you want to use a specific
 set of of env vars on multiple computers.
+
 ## Usage
 
 ### The profile file
@@ -57,6 +58,7 @@ Example:
 
 Key: `/profiler/example_consul_profile`
 Value:
+
 ```yaml
 profile_name: test_consul
 FOO: BAR
@@ -93,14 +95,14 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 > Profiler has been tested only with bash and zsh.
 > Any contribution to validate other shells are welcome.
 
-##### preserveProfile
+#### preserveProfile
 
 This option allow you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
 With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
 
 Reusing an already exported profile from a directory is done as simply as: `profiler use`.
 
-###### Example of a configuration file
+##### Example of a configuration file
 
 ```yml
 profilerFolder: /My/Home/.profiles
@@ -117,11 +119,13 @@ The `profiler add` command allow you to create profiles and add variable to them
 ```bash
 profiler add MyProfile
 ```
+
 will create a profile that only export its name (`profile_name` var)
 
 ```bash
 profiler add MyProfile Key Value
 ```
+
 will add the Key=Value env var to MyProfile (if the profile does not exists it will be created).
 
 #### Manually
@@ -133,6 +137,7 @@ If you want to set env vars or profiles, you can create as many profile files as
 > **Be careful !** The profiles files have to be hidden (so prefixed by a `.`)
 >
 > e.g:
+>
 > ```bash
 >/home/$USER/.profiles/
 >└── .example-aws-us-east-1.yml
@@ -207,6 +212,7 @@ Supported Consul configuration options:
 > **Note:**
 > 
 > The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.
+
 ### The profiler command
 
 * `profiler` - Search for env files and source them if they exists.
@@ -221,7 +227,7 @@ Supported Consul configuration options:
 ## Tips
 
 > **Note**
-> I strongly recommend, for convenience, for you to add `.profiler` field to your global `.gitignore`.
+> I strongly recommend, for convenience, for you to add `.profiler` to your global `.gitignore`.
 
 ## How I'm using it
 
@@ -229,10 +235,10 @@ Basically I like the idea to run a command that summerize all the env vars I nee
 
 So, I define my cloud providers env vars per profile :
 
-* Work AWS
-* Work OpenStack
-* Personal AWS
-* Personal Nomad/Consul Cluster
+- Work AWS
+- Work OpenStack
+- Personal AWS
+- Personal Nomad/Consul Cluster
 ...
 
 In each of these, I have something like :
