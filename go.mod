@@ -3,7 +3,7 @@ module github.com/julienlevasseur/profiler
 go 1.16
 
 require (
-	github.com/aws/aws-sdk-go v1.33.0
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
