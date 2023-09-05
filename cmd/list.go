@@ -36,7 +36,7 @@ var listCmd = &cobra.Command{
 		if viper.GetString("consulAddress") != "" {
 			consulProfiles, err := consul.ListProfiles()
 			if err != nil {
-				log.Printf("Error while listing Consul profiles: %w", err)
+				log.Printf("Error while listing Consul profiles: %s", err)
 			}
 			fmt.Println("\n[Consul Remote Profiles]")
 			for _, profile := range consulProfiles {
