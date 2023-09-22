@@ -13,11 +13,21 @@ It is not intended to manage software configuration (look at [viper](github.com/
 > activation, but, it limits the access to the shell history. You can refer to your shell
 > documentation to find the best way to share history between your shell levels.
 
-From v3.4.0, Profiler support external sources for profiles.
-This is useful if you share environment variable in your team or if you want to use a specific
-set of of env vars on multiple computers.
-
 ## Usage
+
+One of the reasons Profiler has been created is to easily switch between cloud providers
+or Hashicorp stack environments/clusters.
+If you're a Kubernetes user, you can see Profiler as "universal" [kubens](https://github.com/ahmetb/kubectx).
+But is also does more !
+
+Profiler allow you to regroup environement variable in profiles but it will also reads local files (.env.yml, .envrc, .env) to expand your profile based on your local directory (as [direnv](https://github.com/direnv/direnv) (see below)).
+
+So basically, Profiler allows you to:
+
+* Load cloud provider/stacks credentials/configs to switch between accounts/environments
+* Create per-project isolated development environments
+* Load secrets/configs for deployment
+* Share profiles accross teams (with SSM & Consul profiles remote storage)
 
 ### The profile file
 
@@ -34,6 +44,9 @@ TF_VAR_CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 ```
 
 These profile files have to be located in `profilerFolder` and named like `.FooBar.yml`.
+
+Profiler support external sources for profiles.
+This is useful if you share environment variable in your team or if you want to use a specific set of of env vars on multiple computers.
 
 ### The SSM profile
 
@@ -227,13 +240,11 @@ Supported Consul configuration options:
 ## Tips
 
 > **Note**
-> I strongly recommend, for convenience, for you to add `.profiler` to your global `.gitignore`.
+> It's strongly recommend, for convenience, for you to add `.profiler` to your global `.gitignore`.
 
-## How I'm using it
+## Use case example
 
-Basically I like the idea to run a command that summerize all the env vars I need rather than sourcing a file in a folder that I will have to figure out the location almost every time I need it.
-
-So, I define my cloud providers env vars per profile :
+Here's a use case example with several profiles: cloud providers and stacks env vars.
 
 - Work AWS
 - Work OpenStack
@@ -241,25 +252,15 @@ So, I define my cloud providers env vars per profile :
 - Personal Nomad/Consul Cluster
 ...
 
-In each of these, I have something like :
-
-```yaml
-profile_name: aws_dev
-AWS_ACCESS_KEY_ID: 
-AWS_SECRET_ACCESS_KEY: 
-AWS_DEFAULT_REGION: us-east-1
-CONSUL_HTTP_TOKEN: 
-```
-
-I'm using the `profile_name` var in my PS1 to display on my shell which profile is currently in use :
+For conveniance the `profile_name` var can be used in the PS1 to display which profile is currently in use :
 
 ![usage_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/usage_demo.png)
 
 > **Note**
-> I use [Powerline-shell](https://github.com/b-ryan/powerline-shell) to customize my PS1.
-> If you use it too and want take advantage of it to display you *env profile* you can find the segment [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/cloud_profile.py) and a support of Terraform workspaces [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/terraform_workspace.py).
+> [Powerline-shell](https://github.com/b-ryan/powerline-shell) is the tool used in the example to customize my PS1.
+> If you use it too and want take advantage of it to display your *env profile* you can find the segment [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/cloud_profile.py) and a support of Terraform workspaces [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/terraform_workspace.py).
 
-And I set project's specific vars via the `.env.yml` file. For example, if I have a project that contain the code to provision a Kubernetes cluster with [KOPS](https://github.com/kubernetes/kops) I will set the `my_project/.env.yml` as :
+Project's specific vars can be set via the `.env.yml` file. For instance, here's an example of an `.env.yml` file inside the folder for provisionning a Kubernetes cluster with [KOPS](https://github.com/kubernetes/kops):
 
 ```yaml
 KOPS_STATE_STORE: s3://my-project-kubernetes-aws-state
