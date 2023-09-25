@@ -79,6 +79,8 @@ func InitConfig() {
 		viper.SetDefault("consulTokenFile", "")
 	}
 
+	viper.SetDefault("k8sSwitchNamespace", true)
+
 	viper.AutomaticEnv()
 	viper.SetConfigType("yaml")
 

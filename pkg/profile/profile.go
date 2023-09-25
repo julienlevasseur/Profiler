@@ -212,6 +212,11 @@ func SetEnvironment(yml KeyValueMap) {
 			os.Exit(1)
 		}
 
+		//if `k8sSwitchNamespace` is activated and the K8S_NAMESPACE env var is set in the profile, profiler will automatically switch namespace to this value.
+		if viper.GetBool("k8sSwitchNamespace") {
+			checkForKubernetesNamespace(k, v)
+		}
+
 		os.Setenv(k, v)
 	}
 
