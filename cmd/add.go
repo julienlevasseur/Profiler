@@ -24,7 +24,7 @@ var addCmd = &cobra.Command{
 			os.Exit(0)
 		} else {
 			profileName := args[0]
-			filePath := viper.GetString("profilerFolder") + "/." + profileName + ".yml"
+			filePath := viper.GetString("profilesFolder") + "/." + profileName + ".yml"
 
 			// Local profile
 			var key string

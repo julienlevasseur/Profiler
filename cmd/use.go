@@ -19,7 +19,7 @@ var useCmd = &cobra.Command{
 			os.Exit(0)
 		} else {
 			profile.Use(
-				viper.GetString("profilerFolder"),
+				viper.GetString("profilesFolder"),
 				args[0],
 			)
 		}

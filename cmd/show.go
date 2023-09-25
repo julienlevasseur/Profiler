@@ -21,7 +21,7 @@ var showCmd = &cobra.Command{
 		} else {
 			for _, p := range args {
 				vars := profile.ShowProfile(
-					viper.GetString("profilerFolder"),
+					viper.GetString("profilesFolder"),
 					p,
 				)
 

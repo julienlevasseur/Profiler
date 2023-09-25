@@ -44,7 +44,7 @@ CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 TF_VAR_CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 ```
 
-These profile files have to be located in `profilerFolder` and named like `.FooBar.yml`.
+These profile files have to be located in `profilesFolder` and named like `.FooBar.yml`.
 
 Profiler support external sources for profiles.
 This is useful if you share environment variable in your team or if you want to use a specific set of of env vars on multiple computers.
@@ -90,7 +90,7 @@ export PROFILER_CFG="/my/prefered/path"
 
 > **Note**
 > 
-> If no configuration file is found, a default configuration file will be created poiting the `profilerFolder` attribute to `$HOME/.profiles`.
+> If no configuration file is found, a default configuration file will be created poiting the `profilesFolder` attribute to `$HOME/.profiles`.
 
 #### Configuration options
 
@@ -152,7 +152,7 @@ will add the Key=Value env var to MyProfile (if the profile does not exists it w
 
 #### Manually
 
-If you want to set env vars or profiles, you can create as many profile files as you want into the `profilerFolder`.
+If you want to set env vars or profiles, you can create as many profile files as you want into the `profilesFolder`.
 
 > **Note**
 >
