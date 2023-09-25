@@ -19,7 +19,6 @@ import (
 
 type KeyValueMap map[string]string
 
-var envVars KeyValueMap
 var profilerFile, _ = filepath.Abs(".profiler")
 var anyEnvFile = ListFiles(".", "*.env")
 var envFile, _ = filepath.Abs(".env.yml")
@@ -65,16 +64,14 @@ func AppendToFile(filePath, profileName, key, value string) error {
 		}
 	}
 
-	f, err := os.OpenFile(filePath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-
-	defer f.Close()
-
+	f, err := os.OpenFile(filePath,	os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	
 	if newProfile {
 		_, err = f.WriteString(
 			fmt.Sprintf("profile_name: %s\n", profileName),
 		)
 	}
+	defer f.Close()
 
 	if key != "" && value != "" {
 		_, err = f.WriteString(fmt.Sprintf("%s: %s\n", key, value))
@@ -117,6 +114,9 @@ func RemoveFromFile(filePath, match string) error {
 
 	lines := strings.Split(string(input), "\n")
 	_, lineNumber, err := FoundInfFile(filePath, match)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	for i := range lines {
 		if i == lineNumber {
@@ -225,7 +225,7 @@ func SetEnvironment(yml KeyValueMap) {
 		os.Exit(1)
 	}
 
-	if viper.GetBool("preserveProfile") == false {
+	if !viper.GetBool("preserveProfile") {
 		err := os.Remove(".profiler")
 
 		if err != nil {
@@ -236,6 +236,9 @@ func SetEnvironment(yml KeyValueMap) {
 
 	shell := viper.GetString("shell")
 	binary, err := exec.LookPath(shell)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	env := os.Environ()
 	args := []string{shell}

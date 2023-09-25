@@ -56,9 +56,10 @@ var addCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			if alreadyExist {
-				fmt.Fprintln(
+				fmt.Fprintf(
 					os.Stderr,
 					fmt.Sprintf("The provided variable already exist in %s", profileName),
+					"\n",
 				)
 				os.Exit(1)
 			}
