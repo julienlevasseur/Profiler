@@ -1,3 +1,38 @@
+# 3.5.1
+
+- Remove default consul address value from config to avoid error on `profiler list` if Consul is not used.
+
+# 3.5.0
+
+- Add Kubernetes Namespace switch support
+- Rename profilerFolder to profilesFolder and create the folde by default
+- Various fixes and improvements
+
+# 3.4.8
+
+- Update release go version & README
+
+# 3.4.7
+
+- Extends list command
+
+# 3.4.6
+
+- Bump github.com/aws/aws-sdk-go from 1.33.0 to 1.34.0
+
+# 3.4.5
+
+- Add Go version 1.17 and 1.18 in the test pipeline
+- Bump github.com/aws/aws-sdk-go from 1.25.41 to 1.33.0
+- Linting & typos in README
+
+# 3.4.4
+
+- Security fix:
+
+  gopkg.in/yaml.v3 Version< 3.0.0 | Upgrade to~> 3.0.0
+CVE-2022-28948 Moderate severity
+
 # 3.4.3
 
 - Update dependecies
