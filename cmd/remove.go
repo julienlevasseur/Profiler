@@ -27,7 +27,7 @@ var removeCmd = &cobra.Command{
 			if len(args) < 2 {
 				// Only the profile name provided, delete the file:
 				err := os.Remove(
-					viper.GetString("profilerFolder") + "/." + args[0] + ".yml",
+					viper.GetString("profilesFolder") + "/." + args[0] + ".yml",
 				)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
@@ -35,7 +35,7 @@ var removeCmd = &cobra.Command{
 				}
 			} else {
 				profile.RemoveFromFile(
-					viper.GetString("profilerFolder")+"/."+args[0]+".yml",
+					viper.GetString("profilesFolder")+"/."+args[0]+".yml",
 					args[1],
 				)
 			}

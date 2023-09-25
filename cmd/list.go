@@ -16,12 +16,12 @@ var listCmd = &cobra.Command{
 	Short: "list profiles",
 	Run: func(cmd *cobra.Command, args []string) {
 		files := profile.ListFiles(
-			viper.GetString("profilerFolder"),
+			viper.GetString("profilesFolder"),
 			".*.yml",
 		)
 
 		yamlFiles := profile.ListFiles(
-			viper.GetString("profilerFolder"),
+			viper.GetString("profilesFolder"),
 			"*.yaml",
 		)
 
@@ -58,7 +58,7 @@ func listLocalProfiles(files []string) {
 					file,
 					fmt.Sprintf(
 						"%s/.",
-						viper.GetString("profilerFolder"),
+						viper.GetString("profilesFolder"),
 					),
 				)[1], ".y", // The separator here is '.y' to support both .yml and .yaml files
 			)[0],

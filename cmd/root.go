@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,9 +33,20 @@ func Execute() {
 	}
 }
 
+func createProfilesFolder() error {
+	if _, err := os.Stat(viper.GetString("profilesFolder")); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(viper.GetString("profilesFolder"), os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func writeDefaultConfigFile(homeFolder, configFile string) {
 	defaultConfig := []byte(
-		fmt.Sprintf("profilerFolder: %s/.profiles", homeFolder),
+		fmt.Sprintf("profilesFolder: %s/.profiles", homeFolder),
 	)
 	err := ioutil.WriteFile(configFile, defaultConfig, 0644)
 	if err != nil {
@@ -54,6 +66,8 @@ func InitConfig() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	viper.SetDefault("profilesFolder", fmt.Sprintf("%s/.profiles", home))
 
 	if os.Getenv("PROFILER_CFG") != "" {
 		configFile := os.Getenv("PROFILER_CFG")
@@ -79,10 +93,17 @@ func InitConfig() {
 		viper.SetDefault("consulTokenFile", "")
 	}
 
+	viper.SetDefault("k8sSwitchNamespace", true)
+
 	viper.AutomaticEnv()
 	viper.SetConfigType("yaml")
 
 	err = viper.ReadInConfig()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	err = createProfilesFolder()
 	if err != nil {
 		fmt.Println(err)
 	}

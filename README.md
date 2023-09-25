@@ -25,6 +25,7 @@ Profiler allow you to regroup environement variable in profiles but it will also
 So basically, Profiler allows you to:
 
 * Load cloud provider/stacks credentials/configs to switch between accounts/environments
+* Switch accross Kubernetes namespaces
 * Create per-project isolated development environments
 * Load secrets/configs for deployment
 * Share profiles accross teams (with SSM & Consul profiles remote storage)
@@ -43,7 +44,7 @@ CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 TF_VAR_CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 ```
 
-These profile files have to be located in `profilerFolder` and named like `.FooBar.yml`.
+These profile files have to be located in `profilesFolder` and named like `.FooBar.yml`.
 
 Profiler support external sources for profiles.
 This is useful if you share environment variable in your team or if you want to use a specific set of of env vars on multiple computers.
@@ -89,7 +90,7 @@ export PROFILER_CFG="/my/prefered/path"
 
 > **Note**
 > 
-> If no configuration file is found, a default configuration file will be created poiting the `profilerFolder` attribute to `$HOME/.profiles`.
+> If no configuration file is found, a default configuration file will be created poiting the `profilesFolder` attribute to `$HOME/.profiles`.
 
 #### Configuration options
 
@@ -110,17 +111,25 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 
 #### preserveProfile
 
-This option allow you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
+
+
+This option allows you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
 With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
 
 Reusing an already exported profile from a directory is done as simply as: `profiler use`.
 
+#### k8sSwitchNamespace
+
+This option allows you to toggle the auto Kubernetes namespace switch.
+When enabled (by default), if the `K8S_NAMESPACE` is set in a profile, Profiler will switch to this namespace using the `kubectl` command.
+
 ##### Example of a configuration file
 
 ```yml
-profilerFolder: /My/Home/.profiles
+profilesFolder: /My/Home/.profiles
 shell: bash               # Optional (current shell by default)
-preserveProfile: true # Optional (true by default)
+preserveProfile: False    # Optional (true by default)
+k8sSwitchNamespace: False # Optional (true by default)
 ```
 
 ### The profile definition
@@ -143,7 +152,7 @@ will add the Key=Value env var to MyProfile (if the profile does not exists it w
 
 #### Manually
 
-If you want to set env vars or profiles, you can create as many profile files as you want into the `profilerFolder`.
+If you want to set env vars or profiles, you can create as many profile files as you want into the `profilesFolder`.
 
 > **Note**
 >

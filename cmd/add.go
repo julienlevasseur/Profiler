@@ -24,7 +24,7 @@ var addCmd = &cobra.Command{
 			os.Exit(0)
 		} else {
 			profileName := args[0]
-			filePath := viper.GetString("profilerFolder") + "/." + profileName + ".yml"
+			filePath := viper.GetString("profilesFolder") + "/." + profileName + ".yml"
 
 			// Local profile
 			var key string
@@ -56,9 +56,10 @@ var addCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			if alreadyExist {
-				fmt.Fprintln(
+				fmt.Fprintf(
 					os.Stderr,
 					fmt.Sprintf("The provided variable already exist in %s", profileName),
+					"\n",
 				)
 				os.Exit(1)
 			}
