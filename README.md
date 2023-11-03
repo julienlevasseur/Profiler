@@ -13,6 +13,19 @@ It is not intended to manage software configuration (look at [viper](github.com/
 > activation, but, it limits the access to the shell history. You can refer to your shell
 > documentation to find the best way to share history between your shell levels.
 
+Enabling Bash history transfer across shell instances example:
+`.bashrc`:
+```shell
+# append to the history file, don't overwrite it
+shopt -s histappend
+# Bash examines the value of the variable PROMPT_COMMAND before it prints each primary prompt.
+# By adding:
+# history -a -> the history is append to the current session history to the contents of the history file.
+# history -c -> ensure that we clear all the history entries kept currently in memory.
+# history -r -> reload the contents of HISTFILE in memory.
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
+```
+
 ## Usage
 
 One of the reasons Profiler has been created is to easily switch between cloud providers
