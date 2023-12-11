@@ -49,10 +49,7 @@ func (cp ConsulProfile) Exists() (bool, error) {
 }
 
 func (cp ConsulProfile) Show() error {
-
-	kv, err := getKVPair(
-		fmt.Sprintf("/profiler/%s", cp.Name),
-	)
+	kv, err := getKVPair(cp.Name)
 	if err != nil {
 		return err
 	}

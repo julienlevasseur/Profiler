@@ -108,27 +108,10 @@ func InitConfig() {
 	err = viper.ReadInConfig()
 	if err != nil {
 		failure.ExitOnError(err)
-		//fmt.Println(err)
 	}
 
 	err = createProfilesFolder()
 	if err != nil {
 		failure.ExitOnError(err)
-		//fmt.Println(err)
 	}
-
-	//repo := repository.Repository{
-	//	Path: viper.GetString("repositoryPath"),
-	//}
-	//profiles, err := repo.List()
-	//if err != nil {
-	//	failure.ExitOnError(err)
-	//}
-	//fmt.Println(profiles)
-	//
-	//profile, err := repo.Get("aws_perso")
-	//if err != nil {
-	//	failure.ExitOnError(err)
-	//}
-	//fmt.Println(profile.ProfileType)
 }
