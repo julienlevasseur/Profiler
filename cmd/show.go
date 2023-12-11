@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/julienlevasseur/profiler/pkg/consul"
+	"github.com/julienlevasseur/profiler/pkg/failure"
+	"github.com/julienlevasseur/profiler/pkg/local"
+	"github.com/julienlevasseur/profiler/pkg/repository"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,18 +24,30 @@ var showCmd = &cobra.Command{
 			)
 		} else {
 			for _, p := range args {
-				vars := profile.ShowProfile(
-					viper.GetString("profilesFolder"),
-					p,
-				)
-
-				// Display Profile's name:
-				fmt.Printf("%s:\n", p)
-				// Display each Profile's env var name:
-				for _, v := range vars {
-					fmt.Printf("- %s\n", v)
+				repo := repository.Repository{
+					Path: viper.GetString("repositoryPath"),
 				}
-				fmt.Printf("\n")
+				prof, err := repo.Get(p)
+				if err != nil {
+					failure.ExitOnError(err)
+				}
+
+				if prof.ProfileType == "consul" {
+					consulCfg, err := consul.NewConsulConfig()
+					if err != nil {
+						failure.ExitOnError(err)
+					}
+					if consulCfg.Enabled {
+						cp := consul.ConsulProfile{Name: p}
+						cp.Show()
+					}
+				} else if prof.ProfileType == "local" {
+					lp := local.LocalProfile{Name: p}
+					lp.Show()
+				} else {
+					err := errors.New("no matching profile (locally or remotely)")
+					failure.ExitOnError(err)
+				}
 			}
 		}
 	},

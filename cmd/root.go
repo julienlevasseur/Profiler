@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -11,7 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/julienlevasseur/profiler/pkg/failure"
+	"github.com/julienlevasseur/profiler/pkg/local"
 )
 
 /*RootCmd root command*/
@@ -21,15 +21,16 @@ var RootCmd = &cobra.Command{
 	Long: `Profiler is simple tool that allow you to manage your
 environment variables.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		profile.UseNoProfile()
+		local.UseNoProfile()
 	},
 }
 
 /*Execute is used in main.go*/
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		failure.ExitOnError(err)
+		// fmt.Fprintln(os.Stderr, err)
+		// os.Exit(1)
 	}
 }
 
@@ -48,10 +49,10 @@ func writeDefaultConfigFile(homeFolder, configFile string) {
 	defaultConfig := []byte(
 		fmt.Sprintf("profilesFolder: %s/.profiles", homeFolder),
 	)
-	err := ioutil.WriteFile(configFile, defaultConfig, 0644)
+	//err := ioutil.WriteFile(configFile, defaultConfig, 0644)
+	err := os.WriteFile(configFile, defaultConfig, 0644)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		failure.ExitOnError(err)
 	}
 }
 
@@ -90,6 +91,13 @@ func InitConfig() {
 		viper.SetDefault("ssmParameterTier", "Standard")
 		viper.SetDefault("consulToken", "")
 		viper.SetDefault("consulTokenFile", "")
+		viper.SetDefault(
+			"repositoryPath",
+			fmt.Sprintf(
+				"%s/.profiler_repository.json",
+				home,
+			),
+		)
 	}
 
 	viper.SetDefault("k8sSwitchNamespace", true)
@@ -99,11 +107,11 @@ func InitConfig() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		fmt.Println(err)
+		failure.ExitOnError(err)
 	}
 
 	err = createProfilesFolder()
 	if err != nil {
-		fmt.Println(err)
+		failure.ExitOnError(err)
 	}
 }
