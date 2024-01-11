@@ -4,6 +4,6 @@ import (
 	"github.com/julienlevasseur/profiler/repository"
 )
 
-func (r repository.Repository) List() []string {
+func List(r repository.Repository) []string {
 	return r.List()
 }
