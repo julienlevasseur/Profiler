@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/julienlevasseur/profiler/pkg/profile"
+import "github.com/julienlevasseur/profiler/profile"
 
 type IRepository interface {
 	Save(p profile.Profile) error
