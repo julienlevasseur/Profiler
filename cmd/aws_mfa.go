@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/julienlevasseur/profiler/pkg/local"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -77,7 +77,7 @@ var awsMFACmd = &cobra.Command{
 			awsCreds.Credentials.SessionToken,
 		)
 
-		profile.SetEnvironment(envVars)
+		local.SetEnvironment(envVars)
 	},
 }
 

@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"log"
-	"strings"
 
-	"github.com/julienlevasseur/profiler/pkg/consul"
-	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/julienlevasseur/profiler/pkg/failure"
+	"github.com/julienlevasseur/profiler/pkg/repository"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -15,32 +13,15 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "list profiles",
 	Run: func(cmd *cobra.Command, args []string) {
-		files := profile.ListFiles(
-			viper.GetString("profilesFolder"),
-			".*.yml",
-		)
-
-		yamlFiles := profile.ListFiles(
-			viper.GetString("profilesFolder"),
-			"*.yaml",
-		)
-
-		if viper.GetString("consulAddress") != "" || viper.GetString("ssmRegion") != "" {
-			fmt.Println("[Local Profiles]")
+		profiles, err := listProfiles()
+		if err != nil {
+			failure.ExitOnError(err)
 		}
 
-		files = append(files, yamlFiles...)
-		listLocalProfiles(files)
-
-		// Checking for Consul config:
-		if viper.GetString("consulAddress") != "" {
-			consulProfiles, err := consul.ListProfiles()
-			if err != nil {
-				log.Printf("Error while listing Consul profiles: %s", err)
-			}
-			fmt.Println("\n[Consul Remote Profiles]")
-			for _, profile := range consulProfiles {
-				fmt.Println(profile)
+		for profileType, profiles := range profiles {
+			fmt.Printf("[%v]\n", profileType)
+			for _, profileName := range profiles {
+				fmt.Printf("  %v\n", profileName)
 			}
 		}
 	},
@@ -50,18 +31,21 @@ func init() {
 	RootCmd.AddCommand(listCmd)
 }
 
-func listLocalProfiles(files []string) {
-	for _, file := range files {
-		fmt.Println(
-			strings.Split(
-				strings.Split(
-					file,
-					fmt.Sprintf(
-						"%s/.",
-						viper.GetString("profilesFolder"),
-					),
-				)[1], ".y", // The separator here is '.y' to support both .yml and .yaml files
-			)[0],
-		)
+func listProfiles() (map[string][]string, error) {
+	repo := repository.Repository{
+		Path: viper.GetString("repositoryPath"),
 	}
+
+	profiles := make(map[string][]string)
+
+	prof, err := repo.List()
+	if err != nil {
+		return map[string][]string{}, err
+	}
+
+	for _, p := range prof {
+		profiles[p.ProfileType] = append(profiles[p.ProfileType], p.Name)
+	}
+
+	return profiles, nil
 }
