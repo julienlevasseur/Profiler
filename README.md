@@ -17,7 +17,7 @@ It is not intended to manage software configuration (look at [viper](github.com/
 
 One of the reasons Profiler has been created is to easily switch between cloud providers
 or Hashicorp stack environments/clusters.
-If you're a Kubernetes user, you can see Profiler as "universal" [kubens](https://github.com/ahmetb/kubectx).
+If you're a Kubernetes user, you can see Profiler as "universal" [kubectx](https://github.com/ahmetb/kubectx).
 But is also does more !
 
 Profiler allow you to regroup environement variable in profiles but it will also reads local files (.env.yml, .envrc, .env) to expand your profile based on your local directory (as [direnv](https://github.com/direnv/direnv) (see below)).
@@ -53,8 +53,8 @@ This is useful if you share environment variable in your team or if you want to 
 
 A profile stored in SSM will be split in multiple parameters:
 
-- the profile name (created by default when the profile is created with `profiler ssm add`)
-- one parameter per variable contained in the profile
+* the profile name (created by default when the profile is created with `profiler ssm add`)
+* one parameter per variable contained in the profile
 
 Example:
 
@@ -89,7 +89,6 @@ export PROFILER_CFG="/my/prefered/path"
 ```
 
 > **Note**
-> 
 > If no configuration file is found, a default configuration file will be created poiting the `profilesFolder` attribute to `$HOME/.profiles`.
 
 #### Configuration options
@@ -111,8 +110,6 @@ You can also set a `shell` in the configuration file. This can be helpful if you
 
 #### preserveProfile
 
-
-
 This option allows you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
 With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
 
@@ -122,6 +119,25 @@ Reusing an already exported profile from a directory is done as simply as: `prof
 
 This option allows you to toggle the auto Kubernetes namespace switch.
 When enabled (by default), if the `K8S_NAMESPACE` is set in a profile, Profiler will switch to this namespace using the `kubectl` command.
+
+#### ignoredFiles
+
+This option allows you to ignore given files when using a profile.
+It is designed to ignore files with a specific name such as:
+
+- `example.env`
+- `sample.env`
+
+> These values are the one by default. You can add as many as you need.
+> ```
+> ignoredFiles:
+>   - example.env
+>   - sample.env
+>   - NotThisOne.yml
+>   - NotEvenThisOne.env.yml
+> ```
+
+This kind of file is usually used in projects to list variables supported by the app. They are often delivered with fake values or even blank values and not ignoring them may generate an improper profile.
 
 ##### Example of a configuration file
 
@@ -220,7 +236,7 @@ The two supported provider (so far) are:
 
 To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
 credentials.
-To configure the AWS credentials, you can refer to the AWS SDK documentation: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
+To configure the AWS credentials, you can refer to the AWS SDK documentation: [](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
 #### Consul
 
@@ -235,8 +251,10 @@ Supported Consul configuration options:
 | consulTokenFile (optional) | /home/user/.consul_token |
 
 > **Note:**
-> 
 > The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.
+
+#### Vault
+
 
 ### The profiler command
 
@@ -256,6 +274,7 @@ Supported Consul configuration options:
 
 Enabling Bash history transfer across shell instances example:
 `.bashrc`:
+
 ```bash
 # append to the history file, don't overwrite it
 shopt -s histappend
@@ -271,10 +290,10 @@ PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; h
 
 Here's a use case example with several profiles: cloud providers and stacks env vars.
 
-- Work AWS
-- Work OpenStack
-- Personal AWS
-- Personal Nomad/Consul Cluster
+* Work AWS
+* Work OpenStack
+* Personal AWS
+* Personal Nomad/Consul Cluster
 ...
 
 For conveniance the `profile_name` var can be used in the PS1 to display which profile is currently in use :
@@ -304,3 +323,11 @@ KUBE_PASSWORD: ***************
 ## Concept summary
 
 ![concept_summary.png](https://github.com/julienlevasseur/profiler/raw/master/images/concept_summary.png)
+
+
+NEW CONFIGS:
+
+* consulProfilesPath
+* vaultToken
+* vaultAddress
+* vaultProfilesPath

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/julienlevasseur/profiler/config"
 	"github.com/spf13/cobra"
-	//"github.com/julienlevasseur/profiler/profile"
 )
 
 /*RootCmd root command*/
@@ -21,7 +21,20 @@ environment variables.`,
 
 /*Execute is used in main.go*/
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
+	err := RootCmd.Execute()
+	cmdErrorHandler(err)
+	// if err := RootCmd.Execute(); err != nil {
+	// fmt.Fprintln(os.Stderr, err)
+	// os.Exit(1)
+	// }
+}
+
+func init() {
+	cobra.OnInitialize(config.InitCfg)
+}
+
+func cmdErrorHandler(err error) {
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
