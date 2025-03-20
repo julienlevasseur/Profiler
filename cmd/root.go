@@ -8,25 +8,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-/*RootCmd root command*/
+/* RootCmd root command */
 var RootCmd = &cobra.Command{
 	Use:   "profiler",
 	Short: "A tool to manage your env vars as profiles.",
 	Long: `Profiler is simple tool that allow you to manage your
 environment variables.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		//profile.UseNoProfile()
-	},
+	Run: func(cmd *cobra.Command, args []string) {},
 }
 
-/*Execute is used in main.go*/
+/* Execute is used in main.go */
 func Execute() {
 	err := RootCmd.Execute()
 	cmdErrorHandler(err)
-	// if err := RootCmd.Execute(); err != nil {
-	// fmt.Fprintln(os.Stderr, err)
-	// os.Exit(1)
-	// }
 }
 
 func init() {

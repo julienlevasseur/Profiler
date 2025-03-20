@@ -8,8 +8,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/julienlevasseur/profiler/config"
-	"github.com/julienlevasseur/profiler/profile"
-	"github.com/spf13/viper"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 func stringToByteSlice(value string) ([]byte, error) {
@@ -23,10 +22,11 @@ func stringToByteSlice(value string) ([]byte, error) {
 }
 
 func newConsulAPIClient() (*api.Client, error) {
+	cfg := config.Get()
 	client, err := api.NewClient(&api.Config{
-		Address:   viper.GetString("consulAddress"),
-		TokenFile: viper.GetString("consulTokenFile"),
-		Token:     viper.GetString("consulToken"),
+		Address:   cfg.ConsulAddress,
+		TokenFile: cfg.ConsulTokenFile,
+		Token:     cfg.ConsulToken,
 	})
 
 	if err != nil {

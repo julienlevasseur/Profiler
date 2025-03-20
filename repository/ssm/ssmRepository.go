@@ -1,6 +1,6 @@
 package ssm
 
-import "github.com/julienlevasseur/profiler/profile"
+import "github.com/julienlevasseur/profiler/pkg/profile"
 
 type ssmRepository struct {
 	Name string `mapstructure:"name,omitempty" yaml:"name,omitempty"`

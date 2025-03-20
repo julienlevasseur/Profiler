@@ -4,16 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
 	ProfilesFolder        string   `mapstructure:"profilesFolder,omitempty" yaml:"profilesFolder,omitempty"`
+	ProfilerFileName      string   `mapstructure:"profilerFileName,omitempty" yaml:"profilerFileName,omitempty"`
 	LocalProfiles         []string `mapstructure:"localProfiles,omitempty" yaml:"localProfiles,omitempty"`
 	PreserveProfile       bool     `mapstructure:"preserve_profile,omitempty" yaml:"preserve_profile,omitempty"`
+	Shell                 string   `mapstracture:"shell,omitempty" yaml:"shell,omitempty"`
 	ShowRepoSourceInList  bool     `mapstructure:"showRepoSourceInList,omitempty" yaml:"showRepoSourceInList,omitempty"`
+	SupportedRepositories []string `mapstructure:"supportedRepositories,omitempty" yaml:"supportedRepositories,omitempty"`
 	SSMProfiles           []string `mapstructure:"ssmProfiles,omitempty" yaml:"ssmProfiles,omitempty"`
+	// TODO:  Is ConsulProfiles used ?
 	ConsulProfiles        []string `mapstructure:"consulProfiles,omitempty" yaml:"consulProfiles,omitempty"`
 	AWS_ACCESS_KEY_ID     string   `mapstructure:"aws_access_key_id,omitempty" yaml:"aws_access_key_id,omitempty"`
 	AWS_SECRET_ACCESS_KEY string   `mapstructure:"aws_secret_access_key,omitempty" yaml:"aws_secret_access_key,omitempty"`
@@ -57,7 +61,15 @@ func InitCfg() {
 
 	viper.SetDefault("shell", os.Getenv("SHELL"))
 	viper.SetDefault("preserveProfile", true)
+	viper.SetDefault("profilerFileName", ".profiler")
 	viper.SetDefault("showRepoSourceInList", false)
+	viper.SetDefault("supportedRepositories", []string{
+		//"azure",
+		"local",
+		"consul",
+		"ssm",
+		"vault",
+	})
 
 	if err := viper.BindEnv("aws_access_key_id"); err != nil {
 		fmt.Println(err)
@@ -111,9 +123,12 @@ func InitCfg() {
 func Get() Config {
 	return Config{
 		ProfilesFolder:        viper.GetString("ProfilesFolder"),
+		ProfilerFileName:      viper.GetString("profilerFileName"),
 		LocalProfiles:         viper.GetStringSlice("LocalProfiles"),
 		PreserveProfile:       viper.GetBool("PreserveProfile"),
+		Shell:                 viper.GetString("shell"),
 		ShowRepoSourceInList:  viper.GetBool("ShowRepoSourceInList"),
+		SupportedRepositories: viper.GetStringSlice("SupportedRepositories"),
 		SSMProfiles:           viper.GetStringSlice("SSMProfiles"),
 		ConsulProfiles:        viper.GetStringSlice("ConsulProfiles"),
 		AWS_ACCESS_KEY_ID:     viper.GetString("AWS_ACCESS_KEY_ID"),

@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/pkg/consul"
-	"github.com/julienlevasseur/profiler/profile"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 type consulRepository struct {

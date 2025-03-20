@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/julienlevasseur/profiler/profile"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/julienlevasseur/profiler/repository"
 	"github.com/spf13/cobra"
 )

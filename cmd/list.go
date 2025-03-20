@@ -4,16 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/repository"
 	"github.com/spf13/cobra"
 )
-
-var supportedRepositories = []string{
-	"local",
-	"consul",
-	"ssm",
-	"vault",
-}
 
 func appendRepoToProfileName(repo string, profiles []string) []string {
 	for i, profile := range profiles {
@@ -55,9 +49,11 @@ var listCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
+		cfg := config.Get()
+
 		var profiles []string
 
-		for _, r := range supportedRepositories {
+		for _, r := range cfg.SupportedRepositories {
 			profiles = append(profiles, appendProfilesToOutput(r)...)
 		}
 

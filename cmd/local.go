@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/julienlevasseur/profiler/repository"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const localRepo = "local"
@@ -50,16 +50,17 @@ var removeCmd = &cobra.Command{
 			cmd.Help()
 			os.Exit(0)
 		} else {
+			cfg := config.Get()
 			// check if a variable has been provided or just a profile name:
 			if len(args) < 2 {
 				// Only the profile name provided, delete the file:
 				err := os.Remove(
-					viper.GetString("profilesFolder") + "/." + args[0] + ".yml",
+					cfg.ProfilesFolder + "/." + args[0] + ".yml",
 				)
 				cmdErrorHandler(err)
 			} else {
 				profile.RemoveFromFile(
-					viper.GetString("profilesFolder")+"/."+args[0]+".yml",
+					cfg.ProfilesFolder+"/."+args[0]+".yml",
 					args[1],
 				)
 			}
@@ -77,9 +78,10 @@ var showCmd = &cobra.Command{
 				"You can pass multiple profiles.",
 			)
 		} else {
+			cfg := config.Get()
 			for _, p := range args {
 				vars := profile.ShowProfile(
-					viper.GetString("profilesFolder"),
+					cfg.ProfilesFolder,
 					p,
 				)
 

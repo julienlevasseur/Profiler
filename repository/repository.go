@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/julienlevasseur/profiler/profile"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 type Repository struct {

@@ -2,8 +2,8 @@ package vault
 
 import (
 	"github.com/julienlevasseur/profiler/config"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/julienlevasseur/profiler/pkg/vault"
-	"github.com/julienlevasseur/profiler/profile"
 )
 
 type vaultRepository struct {

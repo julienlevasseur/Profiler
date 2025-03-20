@@ -246,7 +246,7 @@ Supported Consul configuration options:
 
 |  Name | Value example |
 |-------|-------|
-| consulAddress | http://W.X.Y.Z:8500 |
+| consulAddress | http://127.0.0.1:8500 |
 | consulToken (optional) | 3d4a9009-eef0-4444-92c4-322e6a853385 |
 | consulTokenFile (optional) | /home/user/.consul_token |
 
@@ -255,6 +255,11 @@ Supported Consul configuration options:
 
 #### Vault
 
+|  Name | Value example |
+|-------|---------------|
+| vaultAddress | https://127.0.0.1:8200 |
+| vaultToken | 5a78a463-1f9b-44cd-8ddd-8e03f3704772 |
+| vaultProfilesPath (optional) | /secret/data/profiler |
 
 ### The profiler command
 

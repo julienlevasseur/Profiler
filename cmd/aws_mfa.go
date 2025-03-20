@@ -69,7 +69,8 @@ var awsMFACmd = &cobra.Command{
 			awsCreds.Credentials.SessionToken,
 		)
 
-		profile.SetEnvironment(envVars)
+		p := profile.MapToProfile(envVars["profile_name"], envVars)
+		profile.SetEnvironment(p)
 	},
 }
 

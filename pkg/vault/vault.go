@@ -11,7 +11,7 @@ import (
 	// "github.com/hashicorp/vault/api"
 	vault "github.com/hashicorp/vault-client-go"
 	"github.com/julienlevasseur/profiler/config"
-	"github.com/julienlevasseur/profiler/profile"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 func newVaultAPIClient() (*vault.Client, error) {
@@ -253,8 +253,8 @@ func RemoveProfile(args []string) error {
 				return err
 			}
 
-			fmt.Println(getSecretPath(pName))
-			fmt.Println(p)
+			// fmt.Println(getSecretPath(pName))
+			// fmt.Println(p)
 
 			var updatedKVs []profile.KV
 
