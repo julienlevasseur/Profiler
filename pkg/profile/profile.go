@@ -14,7 +14,6 @@ import (
 
 	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/pkg/ssm"
-	"github.com/spf13/viper"
 )
 
 type KV struct {
@@ -91,40 +90,6 @@ func FileExist(file string) bool {
 
 	return true
 }
-
-// AppendToFile append a string to a file.
-// It's used by the `add` command to properly append
-// new variables to profiles. It also create a profile
-// file if it does not exists.
-// func AppendToFile(filePath, profileName, key, value string) error {
-
-// 	newProfile := false
-
-// 	if !FileExist(filePath) {
-// 		newProfile = true
-
-// 		_, err := os.Create(filePath)
-// 		if err != nil {
-// 			fmt.Fprintln(os.Stderr, err)
-// 			os.Exit(1)
-// 		}
-// 	}
-
-// 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-
-// 	if newProfile {
-// 		_, err = f.WriteString(
-// 			fmt.Sprintf("profile_name: %s\n", profileName),
-// 		)
-// 	}
-// 	defer f.Close()
-
-// 	if key != "" && value != "" {
-// 		_, err = f.WriteString(fmt.Sprintf("%s: %s\n", key, value))
-// 	}
-
-// 	return err
-// }
 
 func FoundInfFile(filePath, match string) (bool, int, error) {
 
@@ -264,7 +229,7 @@ func SetEnvironment(profile Profile) error {
 		}
 
 		//if `k8sSwitchNamespace` is activated and the K8S_NAMESPACE env var is set in the profile, profiler will automatically switch namespace to this value.
-		if viper.GetBool("k8sSwitchNamespace") {
+		if cfg.K8sSwitchNamespace {
 			checkForKubernetesNamespace(kv.Key, kv.Value)
 		}
 

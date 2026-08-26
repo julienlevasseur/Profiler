@@ -8,9 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var awsMFACmd = &cobra.Command{
@@ -25,7 +25,7 @@ var awsMFACmd = &cobra.Command{
 		}
 
 		session, err := session.NewSession(&aws.Config{
-			Region: aws.String(viper.GetString("ssmRegion")),
+			Region: aws.String(config.Get().SSMRegion),
 		})
 		cmdErrorHandler(err)
 

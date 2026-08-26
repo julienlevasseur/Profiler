@@ -3,6 +3,8 @@
 ![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
 ![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
 
+![images/logo.png](images/logo.png)
+
 Profiler is a CLI tool to organize your environment variables as profiles.
 It is not intended to manage software configuration (look at [viper](github.com/spf13/viper) for this), it focus on developer environment to set temporary specific environments.
 
@@ -82,14 +84,26 @@ FOO: BAR
 
 The config file is located by default in `~/.profiler_cfg.yml`.
 
-You can override this value by setting the `PROFILER_CFG` env var:
+You can override this location by setting the `PROFILER_CFG` env var. It accepts
+either a config file or a directory to look in:
 
 ```bash
+# the config file itself:
+export PROFILER_CFG="/my/prefered/path/my_cfg.yml"
+
+# or a directory, searched for a .profiler_cfg.yml file:
 export PROFILER_CFG="/my/prefered/path"
 ```
 
+Profiler treats the value as a directory only if a directory already exists at
+that path; otherwise it is the config file.
+
 > **Note**
-> If no configuration file is found, a default configuration file will be created poiting the `profilesFolder` attribute to `$HOME/.profiles`.
+> If no configuration file is found, a default one is created, pointing the
+> `profilesFolder` attribute to `$HOME/.profiles`. That applies to the default
+> `~/.profiler_cfg.yml` and to a `PROFILER_CFG` naming a file. When
+> `PROFILER_CFG` names an existing directory, profiler reads from it but does
+> not create a config file there.
 
 #### Configuration options
 
@@ -120,6 +134,64 @@ Reusing an already exported profile from a directory is done as simply as: `prof
 This option allows you to toggle the auto Kubernetes namespace switch.
 When enabled (by default), if the `K8S_NAMESPACE` is set in a profile, Profiler will switch to this namespace using the `kubectl` command.
 
+#### showRepoSourceInList
+
+This option allows you to append the repository a profile comes from to its
+name in `profiler list` output. It is disabled by default, so profiles are
+listed by name alone:
+
+```bash
+$ profiler list
+demo
+staging
+```
+
+With `showRepoSourceInList: True`, every profile held by a remote repository
+(consul, ssm, vault) is suffixed with that repository's name, which is useful
+when the same profile name exists in more than one of them. Local profiles are
+never suffixed:
+
+```bash
+$ profiler list
+demo
+staging (consul)
+staging (vault)
+```
+
+#### localProfiles, consulProfiles, ssmProfiles
+
+These options narrow `profiler list` to a chosen set of profiles per
+repository. They are unset by default, and an unset (or empty) list means no
+limit -- every profile the repository holds is listed.
+
+They are useful when a backend holds more profiles than a given machine cares
+about: a Consul shared between several teams, or an AWS account shared between
+stacks.
+
+```yml
+consulProfiles:
+  - staging
+  - prod
+```
+
+```bash
+# Consul KV holds staging, prod, team-b-dev and team-b-qa
+$ profiler list
+staging
+prod
+```
+
+Each option narrows only its own repository, so the three are independent.
+A name listed here that the repository does not hold is simply not shown, with
+no warning -- which is what lets one config file be shared across machines that
+each hold a different subset of the profiles.
+
+> **Note**
+>
+> Vault has no equivalent option, so vault profiles are never narrowed.
+> These options filter `profiler list` only: `profiler use` can still reach a
+> profile that the list does not show.
+
 #### ignoredFiles
 
 This option allows you to ignore given files when using a profile.
@@ -143,9 +215,10 @@ This kind of file is usually used in projects to list variables supported by the
 
 ```yml
 profilesFolder: /My/Home/.profiles
-shell: bash               # Optional (current shell by default)
-preserveProfile: False    # Optional (true by default)
-k8sSwitchNamespace: False # Optional (true by default)
+shell: bash                   # Optional (current shell by default)
+preserveProfile: False        # Optional (true by default)
+k8sSwitchNamespace: False     # Optional (true by default)
+showRepoSourceInList: True    # Optional (false by default)
 ```
 
 ### The profile definition
@@ -238,17 +311,31 @@ To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
 credentials.
 To configure the AWS credentials, you can refer to the AWS SDK documentation: [](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
+##### Configuration
+
+Supported SSM configuration options:
+
+|  Name | Value example | Default |
+|-------|-------|-------|
+| ssmRegion | eu-west-1 | us-east-1 |
+| ssmParameterTier | Advanced | Standard |
+
 #### Consul
 
-To access profiles stored in the Consul KV Store, Consul credentials must be provided via profiler_cfg.
+To access profiles stored in the Consul KV Store, Consul connection details can be provided via profiler_cfg.
 
 Supported Consul configuration options:
 
-|  Name | Value example |
-|-------|-------|
-| consulAddress | http://127.0.0.1:8500 |
-| consulToken (optional) | 3d4a9009-eef0-4444-92c4-322e6a853385 |
-| consulTokenFile (optional) | /home/user/.consul_token |
+|  Name | Value example | Default |
+|-------|-------|-------|
+| consulAddress | http://consul.example.com:8500 | http://127.0.0.1:8500 |
+| consulToken (optional) | 3d4a9009-eef0-4444-92c4-322e6a853385 | none |
+| consulTokenFile (optional) | /home/user/.consul_token | none |
+
+Profiler decides whether to use Consul by asking it, rather than by guessing
+from the configuration: if a Consul answers at `consulAddress`, its profiles
+appear in `profiler list`; if nothing answers, Consul is skipped and the other
+repositories are listed as usual.
 
 > **Note:**
 > The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.

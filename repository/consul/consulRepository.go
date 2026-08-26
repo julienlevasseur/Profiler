@@ -2,7 +2,9 @@ package consul
 
 import (
 	"io"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/julienlevasseur/profiler/config"
@@ -20,13 +22,18 @@ func NewConsulRepository() *consulRepository {
 	}
 }
 
+// probeTimeout bounds the reachability check IsConfigured makes. It is short
+// on purpose: `profiler list` runs it on every invocation.
+const probeTimeout = 2 * time.Second
+
 func newConsulAPIClient() (*api.Client, error) {
 	cfg := config.Get()
 
 	client, err := api.NewClient(&api.Config{
-		Address:   cfg.ConsulAddress,
-		TokenFile: cfg.ConsulTokenFile,
-		Token:     cfg.ConsulToken,
+		Address:    cfg.ConsulAddress,
+		TokenFile:  cfg.ConsulTokenFile,
+		Token:      cfg.ConsulToken,
+		HttpClient: &http.Client{Timeout: probeTimeout},
 	})
 
 	if err != nil {
@@ -66,14 +73,27 @@ func (r *consulRepository) Add(args []string) error {
 	return err
 }
 
+// IsConfigured reports whether there is a Consul this profiler can actually
+// talk to. Consul needs no auth in dev mode, so both credentials are optional,
+// and consulAddress carries a localhost default -- which leaves nothing in the
+// configuration alone that separates "Consul is set up" from "Consul is not".
+// The only honest answer is to ask, so this makes one short, bounded call.
+//
+// /v1/status/leader requires no ACL token, so the probe reports reachability
+// whether or not Consul has ACLs enabled.
+//
+// Answering false is what keeps `profiler list` usable on a machine with no
+// Consul: cmd/list skips a repository that is not configured, but exits
+// non-zero if one that claimed to be configured then fails to list.
 func (r *consulRepository) IsConfigured() bool {
-	cfg := config.Get()
-
-	if cfg.ConsulAddress != "" && cfg.ConsulToken != "" || cfg.ConsulTokenFile != "" {
-		return true
+	client, err := newConsulAPIClient()
+	if err != nil {
+		return false
 	}
 
-	return false
+	_, err = client.Status().Leader()
+
+	return err == nil
 }
 
 func (r *consulRepository) GetName() string {

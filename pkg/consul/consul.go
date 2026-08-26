@@ -68,15 +68,20 @@ func ListProfiles() ([]string, error) {
 		return []string{}, err
 	}
 
-	// Consul list will return the `profiler` folder as a KV, removing it from
-	// the slice because it doesn't need to be displayed:
-	kvs = kvs[1:]
-
 	var profiles []string
 	for _, kv := range kvs {
-		// Keys are named `profiler/Key`, removing the `profiler/` part for visibility:
-		profiles = append(profiles, strings.Split(kv.Key, "/")[1])
+		// Keys are named `profiler/Key`, removing the `profiler/` part for
+		// visibility. Consul also returns the `profiler/` folder itself as a
+		// KV pair, which is not a profile -- skipping it by name rather than
+		// by position means an empty store is empty rather than a panic.
+		name := strings.TrimPrefix(kv.Key, "profiler/")
+		if name == "" {
+			continue
+		}
+
+		profiles = append(profiles, strings.Split(name, "/")[0])
 	}
+
 	return profiles, nil
 }
 
@@ -117,7 +122,7 @@ func GetKVPairAsProfile(path string) (profile.Profile, error) {
 		return profile.Profile{}, err
 	}
 
-	kv, _, err := consul.KV().Get(fmt.Sprintf(path), nil)
+	kv, _, err := consul.KV().Get(path, nil)
 	if err != nil {
 		return profile.Profile{}, err
 	}

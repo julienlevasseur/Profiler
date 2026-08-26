@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/spf13/viper"
+	"github.com/julienlevasseur/profiler/config"
 )
 
 func newSSMService() *ssm.SSM {
@@ -17,7 +17,7 @@ func newSSMService() *ssm.SSM {
 	// Create a SSM client from just a session.
 	svc := ssm.New(
 		mySession, aws.NewConfig().WithRegion(
-			viper.GetString("ssmRegion"),
+			config.Get().SSMRegion,
 		),
 	)
 
@@ -143,7 +143,7 @@ func AddParameter(paramName string, paramValue string) error {
 	input.SetName("/profiler/" + paramName)
 	input.SetType("String")
 	input.SetTags(tags)
-	input.SetTier(viper.GetString("ssmParameterTier"))
+	input.SetTier(config.Get().SSMParameterTier)
 	input.SetValue(paramValue)
 
 	_, err := svc.PutParameter(input)

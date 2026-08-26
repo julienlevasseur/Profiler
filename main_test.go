@@ -5,12 +5,15 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 
 	"github.com/julienlevasseur/profiler/config"
+	"github.com/julienlevasseur/profiler/pkg/local"
 	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
@@ -138,15 +141,16 @@ var _ = Describe("Profiler", func() {
 		})
 	})
 
-	Context("AppendToFile", func() {
+	Context("AddProfile", func() {
 
 		It("should add a line to test.yml", func() {
-			profile.AppendToFile(
-				profilesPath+".test.yml",
-				"test",
-				"aaaa",
-				"bbbb",
-			)
+			// AddProfile writes to the profiles folder from the config, so
+			// point it at the temp folder this suite works in:
+			viper.Set("profilesFolder", strings.TrimSuffix(profilesPath, "/"))
+
+			err := local.AddProfile([]string{"test", "aaaa", "bbbb"})
+			Expect(err).To(BeNil())
+
 			s = profile.ShowProfile(profilesPath, "test")
 			Expect(s).To(ContainElement("key"))
 			Expect(s).To(ContainElement("aaaa"))

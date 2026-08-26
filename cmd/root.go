@@ -14,7 +14,11 @@ var RootCmd = &cobra.Command{
 	Short: "A tool to manage your env vars as profiles.",
 	Long: `Profiler is simple tool that allow you to manage your
 environment variables.`,
-	Run: func(cmd *cobra.Command, args []string) {},
+	Run: func(cmd *cobra.Command, args []string) {
+		// "Search for env files and source them if they exists" -- same
+		// operation as `profiler use` with no argument.
+		useNoProfile()
+	},
 }
 
 /* Execute is used in main.go */

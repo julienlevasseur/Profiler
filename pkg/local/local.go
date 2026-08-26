@@ -15,6 +15,12 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// profilePath is the on-disk location of a named local profile. Every caller
+// goes through it, so the path is spelled exactly once.
+func profilePath(cfg config.Config, profileName string) string {
+	return filepath.Join(cfg.ProfilesFolder, "."+profileName+".yml")
+}
+
 func getProfileNameFromFilename(filename string) string {
 	cfg := config.Get()
 	p := strings.Replace(
@@ -309,7 +315,7 @@ func AddProfile(args []string) error {
 	cfg := config.Get()
 
 	profileName := args[0]
-	filePath := cfg.ProfilesFolder + "/." + profileName + ".yml"
+	filePath := profilePath(cfg, profileName)
 
 	// Local profile
 	var key string
@@ -342,8 +348,8 @@ func AddProfile(args []string) error {
 	if alreadyExist {
 		fmt.Fprintf(
 			os.Stderr,
-			fmt.Sprintf("The provided variable already exist in %s", profileName),
-			"\n",
+			"The provided variable already exist in %s\n",
+			profileName,
 		)
 		return nil
 	}
@@ -367,13 +373,7 @@ func GetProfile(profileName string) (profile.Profile, error) {
 	envVars := make(map[string]string)
 
 	// parse profile file:
-	kv, err := parseYaml(
-		fmt.Sprintf(
-			"%s/.%v.yml",
-			cfg.ProfilesFolder,
-			profileName,
-		),
-	)
+	kv, err := parseYaml(profilePath(cfg, profileName))
 	if err != nil {
 		return profile.Profile{}, err
 	}
@@ -390,14 +390,14 @@ func GetProfile(profileName string) (profile.Profile, error) {
 	maps.Copy(envVars, dotEnvVars)
 
 	// check for .env.yml file:
-	dotEnvYamlVars, err := loadDotEnvFiles(cfg)
+	dotEnvYamlVars, err := loadDotEnvYaml(cfg)
 	if err != nil {
 		return profile.Profile{}, err
 	}
 	maps.Copy(envVars, dotEnvYamlVars)
 
 	// check for .envrc file:
-	dotEnvRcVars, err := loadDotEnvFiles(cfg)
+	dotEnvRcVars, err := loadDotEnvRc(cfg)
 	if err != nil {
 		return profile.Profile{}, err
 	}
@@ -423,13 +423,7 @@ func ShowProfile(profileName string) ([]string, error) {
 	cfg := config.Get()
 	var vars []string
 
-	kvs, err := parseYaml(
-		fmt.Sprintf(
-			"%s/.%v.yml",
-			cfg.ProfilesFolder,
-			&profileName,
-		),
-	)
+	kvs, err := parseYaml(profilePath(cfg, profileName))
 	if err != nil {
 		return []string{}, err
 	}

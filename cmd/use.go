@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/julienlevasseur/profiler/pkg/local"
 	"github.com/julienlevasseur/profiler/pkg/profile"
@@ -10,66 +11,68 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// remoteRepos are the repositories addressed as `profiler use <repo> <name>`.
+// Anything else in args[0] is taken to be a local profile name.
+var remoteRepos = []string{"consul", "ssm", "vault"}
+
+// resolveTarget works out which repository to ask and which profile to ask it
+// for, from the arguments `profiler use` was given.
+func resolveTarget(args []string) (repo, profileName string, err error) {
+	if !slices.Contains(remoteRepos, args[0]) {
+		return "local", args[0], nil
+	}
+
+	// A remote repository is named by args[0] and takes the profile name in
+	// args[1].
+	if len(args) < 2 {
+		return "", "", fmt.Errorf(
+			"missing profile name: profiler use %s <profile_name>",
+			args[0],
+		)
+	}
+
+	return args[0], args[1], nil
+}
+
 var useCmd = &cobra.Command{
 	Use:   "use [profile_name]",
 	Short: "use the given profile (if no profile specified, profiler will load .profiler file if found)",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) > 0 {
-			if args[0] == "help" {
-				cmd.Help()
-				os.Exit(0)
-			} else {
-				p := profile.Profile{}
-
-				repo := args[0]
-				if repo == "consul" {
-					c, err := repository.GetRepository("consul")
-					cmdErrorHandler(err)
-
-					p, err = c.Get(args[1])
-					cmdErrorHandler(err)
-
-				} else if repo == "ssm" {
-					s, err := repository.GetRepository("ssm")
-					cmdErrorHandler(err)
-					p, err = s.Get(args[1])
-					cmdErrorHandler(err)
-
-				} else if repo == "vault" {
-					v, err := repository.GetRepository("vault")
-					cmdErrorHandler(err)
-
-					p, err = v.Get(args[1])
-					cmdErrorHandler(err)
-
-				} else {
-					// if no repo is specified as first arg, we assume the local
-					// repo is meant to be used:
-					l, err := repository.GetRepository("local")
-					cmdErrorHandler(err)
-
-					p, err := l.Get(args[0])
-					cmdErrorHandler(err)
-
-					err = profile.SetEnvironment(p)
-					cmdErrorHandler(err)
-				}
-
-				err := profile.SetEnvironment(p)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					os.Exit(1)
-				}
-			}
-		} else {
-			// No profile name was provided, look for existing `ProfilerFileName`:
-			p, err := local.GetDotProfiler()
-			cmdErrorHandler(err)
-
-			err = profile.SetEnvironment(p)
-			cmdErrorHandler(err)
+		if len(args) == 0 {
+			useNoProfile()
+			return
 		}
+
+		if args[0] == "help" {
+			cmd.Help()
+			os.Exit(0)
+		}
+
+		repo, profileName, err := resolveTarget(args)
+		cmdErrorHandler(err)
+
+		r, err := repository.GetRepository(repo)
+		cmdErrorHandler(err)
+
+		p, err := r.Get(profileName)
+		cmdErrorHandler(err)
+
+		// SetEnvironment ends in syscall.Exec, so on success it does not
+		// return: this is the last thing `profiler use` does.
+		cmdErrorHandler(profile.SetEnvironment(p))
 	},
+}
+
+// useNoProfile sources the local env files (.profiler, any *.env, .env.yml
+// and .envrc, in that precedence order) with no named profile. Shared by bare
+// `profiler` and by `profiler use` with no argument, which are documented as
+// the same operation.
+func useNoProfile() {
+	p, err := local.GetDotProfiler()
+	cmdErrorHandler(err)
+
+	err = profile.SetEnvironment(p)
+	cmdErrorHandler(err)
 }
 
 func init() {
