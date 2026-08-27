@@ -1,3 +1,16 @@
+# 4.0.0
+
+- The SSM repository is implemented rather than stubbed: `profiler list` shows SSM profiles when AWS credentials resolve, `profiler ssm use` sets an environment from an SSM profile, and every `profiler ssm` subcommand goes through the repository interface.
+- Add the optional `ssmEndpoint` configuration, to reach an SSM that is not AWS's own (localstack, a VPC endpoint, a FIPS endpoint).
+- SSM profile listings are paginated, so more than ten parameters are no longer silently truncated.
+- `profiler remove` and `profiler show` go through the local repository rather than calling `pkg/profile` directly, and the local repository's `Remove`, `Save` and `Show` are implemented rather than stubbed.
+- `profiler show` lists a profile's variables in a stable order.
+- `profiler remove` accepts several variables at once, reports a profile that does not exist instead of failing silently, and refuses to remove `profile_name` on its own.
+- Remove the unused top-level `profile` package. `pkg/profile` is the single `Profile` type; `Design.md` records why.
+- Remove dead scaffolding left over from the redesign: `repository/local/localProfile.go`, the unused `repository.Repository` struct and its `New()`, and the never-implemented `ComposeProfile` and its two helpers.
+- `profiler use` stacks profiles instead of replacing them: a profile applied while another is in use exports both profiles' variables, the newly applied one winning on any variable they share. `profiler status` reports the whole stack (`A+B`), and leaving the shell `use` spawned unstacks. `Design.md` records the decision.
+- `profiler use` exports `profile_keys`, naming the variables the profile in use owns. It is what lets the next `use` stack onto them, and it makes the `.profiler` file a full record of the environment in use rather than only of the profile applied last.
+
 # 3.5.1
 
 - Remove default consul address value from config to avoid error on `profiler list` if Consul is not used.

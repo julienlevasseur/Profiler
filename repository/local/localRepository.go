@@ -8,7 +8,6 @@ import (
 
 type localRepository struct {
 	Name string `mapstructure:"name,omitempty" yaml:"name,omitempty"`
-	// Profile localProfile `mapstructure:"profiles,omitempty" yaml:"profile,omitempty"`
 }
 
 func NewLocalRepository() *localRepository {
@@ -40,13 +39,13 @@ func (r *localRepository) Get(name string) (profile.Profile, error) {
 }
 
 func (r *localRepository) Save(p profile.Profile) error {
-	return nil
+	return local.SaveProfile(p)
 }
 
 func (r *localRepository) Remove(args []string) error {
-	return nil
+	return local.RemoveProfile(args)
 }
 
 func (r *localRepository) Show(name string) ([]string, error) {
-	return []string{}, nil
+	return local.ShowProfile(name)
 }

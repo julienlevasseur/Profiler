@@ -99,7 +99,7 @@ var consulUseCmd = &cobra.Command{
 			prof, err := c.Get(p)
 			cmdErrorHandler(err)
 
-			err = profile.SetEnvironment(prof)
+			err = profile.StackEnvironment(prof)
 			cmdErrorHandler(err)
 		}
 	},

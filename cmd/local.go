@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/julienlevasseur/profiler/config"
-	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/julienlevasseur/profiler/repository"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +29,7 @@ var addCmd = &cobra.Command{
 			l, err := repository.GetRepository(localRepo)
 			cmdErrorHandler(err)
 
-			l.Add(args)
+			cmdErrorHandler(l.Add(args))
 		}
 	},
 }
@@ -50,20 +48,12 @@ var removeCmd = &cobra.Command{
 			cmd.Help()
 			os.Exit(0)
 		} else {
-			cfg := config.Get()
-			// check if a variable has been provided or just a profile name:
-			if len(args) < 2 {
-				// Only the profile name provided, delete the file:
-				err := os.Remove(
-					cfg.ProfilesFolder + "/." + args[0] + ".yml",
-				)
-				cmdErrorHandler(err)
-			} else {
-				profile.RemoveFromFile(
-					cfg.ProfilesFolder+"/."+args[0]+".yml",
-					args[1],
-				)
-			}
+			l, err := repository.GetRepository(localRepo)
+			cmdErrorHandler(err)
+
+			// The repository decides what a bare profile name means: with no
+			// variable after it, the whole profile goes.
+			cmdErrorHandler(l.Remove(args))
 		}
 	},
 }
@@ -78,12 +68,12 @@ var showCmd = &cobra.Command{
 				"You can pass multiple profiles.",
 			)
 		} else {
-			cfg := config.Get()
+			l, err := repository.GetRepository(localRepo)
+			cmdErrorHandler(err)
+
 			for _, p := range args {
-				vars := profile.ShowProfile(
-					cfg.ProfilesFolder,
-					p,
-				)
+				vars, err := l.Show(p)
+				cmdErrorHandler(err)
 
 				// Display Profile's name:
 				fmt.Printf("%s:\n", p)

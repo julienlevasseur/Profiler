@@ -13,7 +13,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/julienlevasseur/profiler/config"
-	"github.com/julienlevasseur/profiler/pkg/ssm"
 )
 
 type KV struct {
@@ -28,7 +27,6 @@ type Profile struct {
 
 type KeyValueMap map[string]string
 
-var profilerFile, _ = filepath.Abs(".profiler")
 var anyEnvFile = ListFiles(".", "*.env")
 var envFile, _ = filepath.Abs(".env.yml")
 var envRcFile, _ = filepath.Abs(".envrc")
@@ -47,26 +45,6 @@ func MapToProfile(profileName string, m map[string]string) Profile {
 		Name: profileName,
 		KVs:  kvs,
 	}
-}
-
-func inUseProfileName() string {
-	return os.Getenv("profile_name")
-}
-
-func requireComposition() bool {
-	if inUseProfileName() != "" {
-		return true
-	}
-
-	return false
-}
-
-func ComposeProfile(profiles []Profile) (Profile, error) {
-	// for _, p := range profiles {
-
-	// }
-
-	return Profile{}, nil
 }
 
 // ListFiles return a list of filenames that match the provided extension
@@ -196,9 +174,12 @@ func ParseEnvrc(filename string) KeyValueMap {
 	return envrcVars
 }
 
-// SetEnvironment read the profilerFile and set a new environment in
-// the given shell (exported one if the config doesn't specify one)
-// func SetEnvironment(yml map[string]string) error {
+// SetEnvironment writes the given profile to the profiler file named by the
+// config and sets a new environment in the configured shell.
+//
+// It replaces: the profile it is given is the profile in use afterwards.
+// Callers that want the profile stacked over the one already in use -- every
+// `use` command -- go through StackEnvironment.
 func SetEnvironment(profile Profile) error {
 	cfg := config.Get()
 
@@ -213,7 +194,10 @@ func SetEnvironment(profile Profile) error {
 		return err
 	}
 
-	for _, kv := range profile.KVs {
+	// profile_keys goes out with the profile's own variables, so the next
+	// `profiler use` can tell which of the environment's variables this
+	// profile owns and stack onto them. See KeysVar and ActiveProfile.
+	for _, kv := range withKeysMarker(profile.KVs) {
 
 		file, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0644)
 
@@ -301,18 +285,6 @@ func Use(profilesFolder string, profileName string) {
 	}
 
 	p := MapToProfile(profileName, envVars)
-	SetEnvironment(p)
-}
-
-// UseSSMProfile set the environment for the given remote AWS SSM profile
-func UseSSMProfile(profileName string) {
-	vars, err := ssm.GetProfile(profileName)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	p := MapToProfile(profileName, vars)
 	SetEnvironment(p)
 }
 

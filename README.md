@@ -311,6 +311,15 @@ To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
 credentials.
 To configure the AWS credentials, you can refer to the AWS SDK documentation: [](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
+Profiler decides whether to use SSM by resolving those credentials, rather than
+by calling AWS: if the AWS credential chain answers -- from the environment, the
+shared credentials file, or an instance role -- the profiles stored under
+`/profiler` appear in `profiler list`; if it does not, SSM is skipped and the
+other repositories are listed as usual.
+
+On a machine that has AWS credentials but no interest in SSM profiles, drop
+`ssm` from `supportedRepositories` to keep `profiler list` from asking.
+
 ##### Configuration
 
 Supported SSM configuration options:
@@ -319,6 +328,10 @@ Supported SSM configuration options:
 |-------|-------|-------|
 | ssmRegion | eu-west-1 | us-east-1 |
 | ssmParameterTier | Advanced | Standard |
+| ssmEndpoint (optional) | http://localhost:4566 | the AWS endpoint for ssmRegion |
+
+`ssmEndpoint` points profiler at an SSM that is not AWS's own -- localstack, a
+VPC endpoint, a FIPS endpoint. Left unset, the region's AWS endpoint is used.
 
 #### Consul
 
@@ -354,10 +367,48 @@ repositories are listed as usual.
 * `profiler` `list` - list the available profiles.
 * `profiler` `add` `${profile_name}` `${key}` `${value}` - create the given profile and or add the given env var to the profile.
 * `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
-* `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them.
+* `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them. Profiles stack: see [Stacking profiles](#stacking-profiles).
 * `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
-* `profiler` `ssm` - Interact with remote profiles stored in AWS SSM.
+* `profiler` `ssm` `${subcommand}` - Interact with remote profiles stored in AWS SSM: `add`, `list`, `remove`, `show` and `use`, which take the same arguments as their local equivalents.
+* `profiler` `consul` `${subcommand}` - The same, for profiles stored in Consul.
+* `profiler` `vault` `${subcommand}` - The same, for profiles stored in Vault.
 * `profiler` `help` - Display the help message.
+
+### Stacking profiles
+
+`profiler use` layers the profile onto whatever is already in use rather than
+replacing it. Both profiles' variables are exported, and on a variable they
+both set, the one you just applied wins:
+
+```bash
+$ profiler use aws_dev      # exports AWS_PROFILE, AWS_REGION
+$ profiler use kube_dev     # exports KUBECONFIG, K8S_NAMESPACE, AWS_REGION
+$ profiler status
+aws_dev+kube_dev
+```
+
+`AWS_PROFILE` is still exported, `KUBECONFIG` is now exported too, and
+`AWS_REGION` holds `kube_dev`'s value. This works across backends as well —
+a local profile stacks onto an SSM or Consul one just the same.
+
+`profile_name` names the whole stack, so a PS1 built on it shows every profile
+in use.
+
+**Unstacking is leaving the shell.** Every `profiler use` spawns a new shell,
+so `exit` drops back to the shell — and the environment — you had before it:
+
+```bash
+$ profiler use aws_dev
+$ profiler use kube_dev     # aws_dev+kube_dev
+$ exit                      # back to aws_dev
+$ exit                      # back to no profile
+```
+
+Profiler exports one variable of its own to make this work: `profile_keys`,
+listing the variables the current profile owns. It is what lets the next
+`profiler use` tell your profile's variables apart from the rest of your
+environment. `unset SOME_VAR` takes that variable out of the profile, so it is
+not carried into the next one.
 
 ## Tips
 

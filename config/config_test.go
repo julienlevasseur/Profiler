@@ -1,11 +1,14 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
@@ -28,6 +31,7 @@ ssmProfiles:
   - ssm-alpha
 ssmRegion: eu-west-1
 ssmParameterTier: Advanced
+ssmEndpoint: http://ssm.example.com:4566
 ignoredFiles:
   - sample.env
 consulProfiles:
@@ -136,5 +140,122 @@ func TestBindEnvsReachesEveryKey(t *testing.T) {
 
 	if got := Get().VaultToken; got != "from-env" {
 		t.Errorf("VaultToken = %q after bindEnvs, want %q", got, "from-env")
+	}
+}
+
+// writeCfg writes a config file at path, failing the test rather than
+// returning an error.
+func writeCfg(t *testing.T, path, content string) {
+	t.Helper()
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+// initCfgSandbox runs InitCfg against a throwaway HOME with no PROFILER_CFG
+// set, so it takes the default resolution path -- the one a fresh install
+// hits. It returns the sandbox home. viper's global state and go-homedir's
+// cache are both process-wide, so both are reset around the call.
+func initCfgSandbox(t *testing.T) string {
+	t.Helper()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PROFILER_CFG", "") // empty is treated as unset by InitCfg
+
+	homedir.DisableCache = true
+	t.Cleanup(func() { homedir.DisableCache = false })
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	InitCfg()
+
+	return home
+}
+
+// TestInitCfgDefaultsProfilesFolder is R1: master defaulted profilesFolder to
+// $HOME/.profiles and created it, then the default was commented out and the
+// folder-creation helper deleted, so a fresh install resolved the path to ""
+// and wrote every profile to the filesystem root. This pins both halves back
+// down -- the default, and that the folder exists after InitCfg.
+func TestInitCfgDefaultsProfilesFolder(t *testing.T) {
+	home := initCfgSandbox(t)
+
+	want := filepath.Join(home, ".profiles")
+
+	if got := Get().ProfilesFolder; got != want {
+		t.Errorf("ProfilesFolder = %q, want %q", got, want)
+	}
+
+	if fi, err := os.Stat(want); err != nil || !fi.IsDir() {
+		t.Errorf("profiles folder %q was not created (err=%v)", want, err)
+	}
+}
+
+// TestInitCfgSSMDefaults is R5: ssmRegion and ssmParameterTier lost their
+// defaults in the new config package while three call sites still read them,
+// so `profiler ssm list` failed with MissingRegion. The defaults are back;
+// this is the test that keeps them.
+func TestInitCfgSSMDefaults(t *testing.T) {
+	initCfgSandbox(t)
+
+	cfg := Get()
+
+	if cfg.SSMRegion != "us-east-1" {
+		t.Errorf("SSMRegion = %q, want us-east-1", cfg.SSMRegion)
+	}
+	if cfg.SSMParameterTier != "Standard" {
+		t.Errorf("SSMParameterTier = %q, want Standard", cfg.SSMParameterTier)
+	}
+}
+
+// TestInitCfgProfilerCfgAcceptsFileAndDirectory is R3: the redesign changed
+// PROFILER_CFG from a file path (SetConfigFile) to a directory (AddConfigPath),
+// silently breaking every setup that pointed it at a file. The decision
+// recorded in the code is to accept both, and this is the test that agrees with
+// it -- a directory holding the config, and a file that *is* the config, must
+// resolve the same profilesFolder.
+func TestInitCfgProfilerCfgAcceptsFileAndDirectory(t *testing.T) {
+	cases := []struct {
+		name  string
+		asDir bool
+	}{
+		{"directory form (redesign)", true},
+		{"file form (pre-redesign, must still resolve)", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+
+			homedir.DisableCache = true
+			t.Cleanup(func() { homedir.DisableCache = false })
+
+			base := t.TempDir()
+			profiles := filepath.Join(base, "profiles")
+			body := "profilesFolder: " + profiles + "\n"
+
+			var cfgEnv string
+			if tc.asDir {
+				writeCfg(t, filepath.Join(base, ConfigFileName+".yml"), body)
+				cfgEnv = base
+			} else {
+				cfgEnv = filepath.Join(base, "myprofiler.yml")
+				writeCfg(t, cfgEnv, body)
+			}
+			t.Setenv("PROFILER_CFG", cfgEnv)
+
+			viper.Reset()
+			t.Cleanup(viper.Reset)
+
+			InitCfg()
+
+			if got := Get().ProfilesFolder; got != profiles {
+				t.Errorf("ProfilesFolder = %q, want %q", got, profiles)
+			}
+		})
 	}
 }

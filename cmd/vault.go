@@ -98,7 +98,7 @@ var vaultUseCmd = &cobra.Command{
 			prof, err := v.Get(p)
 			cmdErrorHandler(err)
 
-			err = profile.SetEnvironment(prof)
+			err = profile.StackEnvironment(prof)
 			cmdErrorHandler(err)
 		}
 	},

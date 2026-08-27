@@ -57,9 +57,9 @@ var useCmd = &cobra.Command{
 		p, err := r.Get(profileName)
 		cmdErrorHandler(err)
 
-		// SetEnvironment ends in syscall.Exec, so on success it does not
+		// StackEnvironment ends in syscall.Exec, so on success it does not
 		// return: this is the last thing `profiler use` does.
-		cmdErrorHandler(profile.SetEnvironment(p))
+		cmdErrorHandler(profile.StackEnvironment(p))
 	},
 }
 
@@ -71,7 +71,7 @@ func useNoProfile() {
 	p, err := local.GetDotProfiler()
 	cmdErrorHandler(err)
 
-	err = profile.SetEnvironment(p)
+	err = profile.StackEnvironment(p)
 	cmdErrorHandler(err)
 }
 

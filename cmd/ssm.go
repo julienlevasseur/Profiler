@@ -1,13 +1,15 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
-	"github.com/julienlevasseur/profiler/pkg/ssm"
+	"github.com/julienlevasseur/profiler/pkg/profile"
+	"github.com/julienlevasseur/profiler/repository"
 	"github.com/spf13/cobra"
 )
+
+const ssmRepo = "ssm"
 
 var ssmCmd = &cobra.Command{
 	Use:   "ssm",
@@ -21,31 +23,14 @@ var ssmCmd = &cobra.Command{
 }
 
 var ssmAddCmd = &cobra.Command{
-	Use:   "add [profile_name] [ENV_VAR=value]",
+	Use:   "add [profile_name] [ENV_VAR] [value]",
 	Short: "add the given profile or the given env var to the SSM profile",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Check first if the given profile exists
-		profileExist, err := ssm.ProfileExist(args[0])
+		s, err := repository.GetRepository(ssmRepo)
 		cmdErrorHandler(err)
 
-		if !profileExist {
-			err = ssm.AddParameter(args[0]+"/profile_name", args[0])
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-		}
-
-		if len(args) > 1 {
-			if len(args) < 3 { // If no value provided:
-				cmdErrorHandler(
-					errors.New("Please provide a value for the variable"),
-				)
-			}
-
-			err = ssm.AddParameter(args[0]+"/"+args[1], args[2])
-			cmdErrorHandler(err)
-		}
+		cmdErrorHandler(s.Add(args))
 	},
 }
 
@@ -53,8 +38,10 @@ var ssmListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "list remote profiles stored in AWS SSM",
 	Run: func(cmd *cobra.Command, args []string) {
-		// List SSM Parameter Store Profiles
-		profiles, err := ssm.ListProfiles()
+		s, err := repository.GetRepository(ssmRepo)
+		cmdErrorHandler(err)
+
+		profiles, err := s.List()
 		cmdErrorHandler(err)
 
 		for _, p := range profiles {
@@ -66,44 +53,25 @@ var ssmListCmd = &cobra.Command{
 var ssmRemoveCmd = &cobra.Command{
 	Use:   "remove [profile_name] [ENV_VAR]",
 	Short: "remove the given profile or the given env var from the remote profile stored in AWS SSM",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Check first if the given profile exists
-		profileExist, err := ssm.ProfileExist(args[1])
+		s, err := repository.GetRepository(ssmRepo)
 		cmdErrorHandler(err)
 
-		if !profileExist {
-			cmdErrorHandler(
-				errors.New("The provided Profile does not exist"),
-			)
-		} else {
-			// check if a variable has been provided or just a profile name:
-			if len(args) < 3 {
-				// Only the profile name provided, delete all related params:
-				params, err := ssm.ShowProfile(args[1])
-				cmdErrorHandler(err)
-
-				for _, param := range params {
-					err := ssm.RemoveParameter(
-						"/profiler/" + args[1] + "/" + param,
-					)
-					cmdErrorHandler(err)
-				}
-			} else {
-				err := ssm.RemoveParameter(
-					"/profiler/" + args[1] + "/" + args[2],
-				)
-				cmdErrorHandler(err)
-			}
-		}
+		cmdErrorHandler(s.Remove(args))
 	},
 }
 
 var ssmShowCmd = &cobra.Command{
 	Use:   "show [profile_name]",
 	Short: "show given profile(s) variables name",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		s, err := repository.GetRepository(ssmRepo)
+		cmdErrorHandler(err)
+
 		for _, p := range args {
-			vars, err := ssm.ShowProfile(p)
+			vars, err := s.Show(p)
 			cmdErrorHandler(err)
 
 			// Display Profile's name:
@@ -117,10 +85,28 @@ var ssmShowCmd = &cobra.Command{
 	},
 }
 
+var ssmUseCmd = &cobra.Command{
+	Use:   "use [profile_name]",
+	Short: "use the given SSM profile",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		s, err := repository.GetRepository(ssmRepo)
+		cmdErrorHandler(err)
+
+		p, err := s.Get(args[0])
+		cmdErrorHandler(err)
+
+		// StackEnvironment ends in syscall.Exec, so on success it does not
+		// return: this is the last thing `profiler ssm use` does.
+		cmdErrorHandler(profile.StackEnvironment(p))
+	},
+}
+
 func init() {
 	ssmCmd.AddCommand(ssmAddCmd)
 	ssmCmd.AddCommand(ssmListCmd)
 	ssmCmd.AddCommand(ssmRemoveCmd)
 	ssmCmd.AddCommand(ssmShowCmd)
+	ssmCmd.AddCommand(ssmUseCmd)
 	RootCmd.AddCommand(ssmCmd)
 }

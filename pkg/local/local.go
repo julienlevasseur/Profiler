@@ -298,10 +298,10 @@ func populateProfile(p profile.Profile, kv map[string]string) profile.Profile {
 			p.KVs,
 			profile.KV{
 				Key:   "profile_name",
-				Value: "No-Name-Profile",
+				Value: profile.NoName,
 			},
 		)
-		p.Name = "No-Name-Profile"
+		p.Name = profile.NoName
 	}
 
 	for k, v := range kv {
@@ -431,7 +431,78 @@ func ShowProfile(profileName string) ([]string, error) {
 		vars = append(vars, k)
 	}
 
+	// Map iteration order is random, so sort to keep `profiler show` output
+	// stable between runs:
+	slices.Sort(vars)
+
 	return vars, nil
+}
+
+// RemoveProfile deletes a whole local profile when only its name is given, and
+// removes the named variables from it when keys follow the name.
+func RemoveProfile(args []string) error {
+	if len(args) == 0 {
+		return errors.New("Please provide a profile name to remove")
+	}
+
+	cfg := config.Get()
+	profileName := args[0]
+	filePath := profilePath(cfg, profileName)
+
+	if !fileExist(filePath) {
+		return errors.New("The profile does not exist")
+	}
+
+	keys := args[1:]
+	if len(keys) == 0 {
+		// Only the profile name was provided, delete the file:
+		return os.Remove(filePath)
+	}
+
+	for _, key := range keys {
+		// the profile_name key cannot be removed (just remove the whole
+		// profile then):
+		if key == "profile_name" {
+			continue
+		}
+
+		err := profile.RemoveFromFile(filePath, key)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SaveProfile writes the given profile to its file, replacing whatever was
+// there. The on-disk shape is the flat `key: value` yaml map parseYaml reads,
+// with the profile name carried in the profile_name key.
+func SaveProfile(p profile.Profile) error {
+	kv := make(map[string]string, len(p.KVs)+1)
+	for _, k := range p.KVs {
+		kv[k.Key] = k.Value
+	}
+
+	// GetProfile lifts profile_name out of the map and into Profile.Name, so
+	// the name can reach us either way:
+	profileName := kv["profile_name"]
+	if profileName == "" {
+		profileName = p.Name
+	}
+	if profileName == "" {
+		return errors.New("Cannot save a profile without a name")
+	}
+	kv["profile_name"] = profileName
+
+	content, err := yaml.Marshal(kv)
+	if err != nil {
+		return err
+	}
+
+	cfg := config.Get()
+
+	return os.WriteFile(profilePath(cfg, profileName), content, 0644)
 }
 
 func UseProfile(args []string) error {

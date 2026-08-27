@@ -29,6 +29,7 @@ type Config struct {
 	SSMProfiles           []string `mapstructure:"ssmProfiles"`
 	SSMRegion             string   `mapstructure:"ssmRegion"`
 	SSMParameterTier      string   `mapstructure:"ssmParameterTier"`
+	SSMEndpoint           string   `mapstructure:"ssmEndpoint"`
 	ConsulProfiles        []string `mapstructure:"consulProfiles"`
 	ConsulAddress         string   `mapstructure:"consulAddress"`
 	ConsulToken           string   `mapstructure:"consulToken"`
@@ -170,6 +171,9 @@ func InitCfg() {
 
 	viper.SetDefault("ssmRegion", "us-east-1")
 	viper.SetDefault("ssmParameterTier", "Standard")
+	// ssmEndpoint has no default on purpose: empty means the AWS endpoint
+	// for ssmRegion, which is what all but the localstack/VPC-endpoint
+	// cases want.
 
 	viper.SetDefault("k8sSwitchNamespace", true)
 

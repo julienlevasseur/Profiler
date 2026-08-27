@@ -1,43 +1,184 @@
 package ssm
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"net/http"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/julienlevasseur/profiler/config"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
-func newSSMService() *ssm.SSM {
-	mySession := session.Must(session.NewSession())
+// profilesPath is the Parameter Store hierarchy profiler owns. Every profile
+// is a folder under it, and every variable a parameter in that folder:
+//
+//	/profiler/<profile>/profile_name
+//	/profiler/<profile>/<KEY>
+const profilesPath = "/profiler"
 
-	// Create a SSM client from just a session.
-	svc := ssm.New(
-		mySession, aws.NewConfig().WithRegion(
-			config.Get().SSMRegion,
-		),
-	)
+// probeTimeout bounds the credential lookup IsConfigured makes. It is short on
+// purpose: `profiler list` runs it on every invocation, and the credential
+// chain ends at the EC2 metadata endpoint, which is unreachable rather than
+// absent on a machine that is not an EC2 instance.
+const probeTimeout = 2 * time.Second
 
-	return svc
-}
+func newSSMService() (*ssm.SSM, error) {
+	cfg := config.Get()
 
-func getParameters(path string) ([]*ssm.Parameter, error) {
-	svc := newSSMService()
+	awsCfg := aws.NewConfig().WithRegion(cfg.SSMRegion)
 
-	var input = &ssm.GetParametersByPathInput{}
-	input.SetPath(path)
-	input.SetRecursive(true)
-
-	getParametersByPathOutput, err := svc.GetParametersByPath(input)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	// An empty ssmEndpoint means the AWS endpoint for ssmRegion. It is set
+	// to reach an SSM that is not AWS's own -- localstack, a VPC endpoint,
+	// a FIPS endpoint.
+	if cfg.SSMEndpoint != "" {
+		awsCfg = awsCfg.WithEndpoint(cfg.SSMEndpoint)
 	}
 
-	return getParametersByPathOutput.Parameters, nil
+	sess, err := session.NewSession(awsCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return ssm.New(sess), nil
+}
+
+// profilePath is the folder holding one profile's parameters.
+func profilePath(profileName string) string {
+	return fmt.Sprintf("%s/%s", profilesPath, profileName)
+}
+
+// parameterPath is the full name of one variable of one profile.
+func parameterPath(profileName, key string) string {
+	return fmt.Sprintf("%s/%s", profilePath(profileName), key)
+}
+
+// splitParameterPath breaks a parameter name into the profile it belongs to
+// and the variable it holds. Either can come back empty: listing a path
+// recursively also returns the folder parameters themselves, which name a
+// profile but no variable.
+func splitParameterPath(name string) (profileName, key string) {
+	parts := strings.Split(
+		strings.TrimPrefix(name, profilesPath+"/"),
+		"/",
+	)
+
+	profileName = parts[0]
+	if len(parts) > 1 {
+		key = parts[1]
+	}
+
+	return profileName, key
+}
+
+// getParameters returns every parameter under path. GetParametersByPath is
+// paginated -- ten parameters a page by default -- so this walks every page:
+// a profile set larger than one page would otherwise be silently truncated.
+func getParameters(path string) ([]*ssm.Parameter, error) {
+	svc, err := newSSMService()
+	if err != nil {
+		return nil, err
+	}
+
+	var params []*ssm.Parameter
+
+	err = svc.GetParametersByPathPages(
+		&ssm.GetParametersByPathInput{
+			Path:      aws.String(path),
+			Recursive: aws.Bool(true),
+		},
+		func(page *ssm.GetParametersByPathOutput, lastPage bool) bool {
+			params = append(params, page.Parameters...)
+			return !lastPage
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return params, nil
+}
+
+// putParameter writes one variable of one profile. SSM refuses Tags and
+// Overwrite in the same call, so this tags on creation and overwrites on
+// update: a parameter profiler already owns is already tagged.
+func putParameter(name, value string) error {
+	svc, err := newSSMService()
+	if err != nil {
+		return err
+	}
+
+	input := &ssm.PutParameterInput{
+		Name:  aws.String(name),
+		Type:  aws.String(ssm.ParameterTypeString),
+		Value: aws.String(value),
+		Tier:  aws.String(config.Get().SSMParameterTier),
+		Tags: []*ssm.Tag{{
+			Key:   aws.String("profiler"),
+			Value: aws.String("true"),
+		}},
+	}
+
+	_, err = svc.PutParameter(input)
+
+	var awsErr awserr.Error
+	if errors.As(err, &awsErr) && awsErr.Code() == ssm.ErrCodeParameterAlreadyExists {
+		input.Tags = nil
+		input.Overwrite = aws.Bool(true)
+		_, err = svc.PutParameter(input)
+	}
+
+	return err
+}
+
+func deleteParameter(name string) error {
+	svc, err := newSSMService()
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.DeleteParameter(&ssm.DeleteParameterInput{
+		Name: aws.String(name),
+	})
+
+	return err
+}
+
+// IsConfigured reports whether this machine has what it takes to reach the SSM
+// Parameter Store: a region, and credentials the AWS chain can resolve -- from
+// the environment, the shared credentials file, or an instance role.
+//
+// It resolves the credentials rather than calling SSM, so the answer costs
+// nothing on the common paths, and it bounds the one path that can reach out
+// (the metadata endpoint) so `profiler list` cannot hang on a machine with no
+// AWS setup at all. Answering false is what keeps `profiler list` usable
+// there: cmd/list skips a repository that is not configured.
+func IsConfigured() bool {
+	cfg := config.Get()
+
+	if cfg.AWS_ACCESS_KEY_ID == "" || cfg.AWS_SECRET_ACCESS_KEY == "" {
+		return false
+	}
+
+	sess, err := session.NewSession(
+		aws.NewConfig().
+			WithRegion(cfg.SSMRegion).
+			WithHTTPClient(&http.Client{Timeout: probeTimeout}).
+			WithMaxRetries(0),
+	)
+	if err != nil {
+		return false
+	}
+
+	_, err = sess.Config.Credentials.Get()
+
+	return err == nil
 }
 
 /*ProfileExist return a boolean representation of the given profile existence*/
@@ -47,123 +188,177 @@ func ProfileExist(profileName string) (bool, error) {
 		return false, err
 	}
 
-	for _, profile := range profiles {
-		if profile == profileName {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return slices.Contains(profiles, profileName), nil
 }
 
-func profileAlreadyListed(profiles []string, searchedProfile string) bool {
-	for _, i := range profiles {
-		if i == searchedProfile {
-			return true
+// profileNames is the profile half of a listing of the whole /profiler path.
+func profileNames(params []*ssm.Parameter) []string {
+	var profiles []string
+
+	for _, p := range params {
+		profileName, _ := splitParameterPath(aws.StringValue(p.Name))
+
+		// A profile holding several variables is returned once per
+		// variable, and a listing names each profile once:
+		if profileName == "" || slices.Contains(profiles, profileName) {
+			continue
 		}
+
+		profiles = append(profiles, profileName)
 	}
 
-	return false
+	return profiles
 }
 
 /*ListProfiles return the name of the SSM profiles as []string*/
 func ListProfiles() ([]string, error) {
-	params, err := getParameters("/profiler/")
+	params, err := getParameters(profilesPath + "/")
 	if err != nil {
 		return []string{}, err
 	}
 
-	var ssmProfiles []string
+	return profileNames(params), nil
+}
+
+// parametersToProfile turns a listing of one profile's folder into the profile
+// it holds.
+func parametersToProfile(profileName string, params []*ssm.Parameter) profile.Profile {
+	var kvs []profile.KV
+
 	for _, p := range params {
-		profileName := strings.Split(*p.Name, "/")[2]
-		/** With SSM folders management, a profile would be listed as many time as vars
-		it contains. Since ListProfile is meant to list once every found profiles, we
-		check here if the profile has already been listed or not:*/
-		if len(ssmProfiles) == 0 || !profileAlreadyListed(ssmProfiles, profileName) {
-			ssmProfiles = append(
-				ssmProfiles,
-				profileName,
-			)
+		_, key := splitParameterPath(aws.StringValue(p.Name))
+		// The folder parameter names the profile but holds no variable:
+		if key == "" {
+			continue
 		}
+
+		kvs = append(kvs, profile.KV{
+			Key:   key,
+			Value: aws.StringValue(p.Value),
+		})
 	}
 
-	return ssmProfiles, nil
+	return profile.Profile{
+		Name: profileName,
+		KVs:  kvs,
+	}
+}
+
+/*GetProfile retrieve the given profile from AWS SSM*/
+func GetProfile(profileName string) (profile.Profile, error) {
+	params, err := getParameters(profilePath(profileName))
+	if err != nil {
+		return profile.Profile{}, err
+	}
+
+	return parametersToProfile(profileName, params), nil
 }
 
 /*ShowProfile list the Env vars stored in a profile*/
 func ShowProfile(profileName string) ([]string, error) {
-	params, err := getParameters("/profiler/" + profileName)
+	p, err := GetProfile(profileName)
 	if err != nil {
 		return []string{}, err
 	}
 
-	var vars []string
-	for _, p := range params {
-		varName := strings.Split(*p.Name, "/")[3]
-		vars = append(vars, varName)
+	var keys []string
+	for _, kv := range p.KVs {
+		keys = append(keys, kv.Key)
 	}
 
-	return vars, nil
+	return keys, nil
 }
 
-/*GetProfile retrive the given profile from AWS SSM*/
-func GetProfile(profileName string) (map[string]string, error) {
-	params, err := getParameters("/profiler/" + profileName)
-	if err != nil {
-		return map[string]string{}, err
+// AddProfile create the given profile, and add the given variables to it. args
+// is the profile name followed by an even number of key/value arguments, which
+// is the same shape the consul and vault repositories take.
+func AddProfile(args []string) error {
+	if len(args) == 0 {
+		return errors.New("Please provide a profile name")
 	}
 
-	vars := make(map[string]string)
+	profileName, kvs := args[0], args[1:]
 
-	for _, p := range params {
-		vars[strings.Split(*p.Name, "/")[3]] = *p.Value
+	// A key with no value, or a value with no key:
+	if len(kvs)%2 != 0 {
+		return errors.New("Please provide a value for the variable")
 	}
 
-	return vars, nil
-}
-
-/*AddParameter is used to create either Profile or Env var in SSM*/
-func AddParameter(paramName string, paramValue string) error {
-	svc := newSSMService()
-
-	var tags []*ssm.Tag
-	tag := &ssm.Tag{
-		Key:   aws.String("profiler"),
-		Value: aws.String("true"),
-	}
-	tags = append(tags, tag)
-
-	/* If only paramName is provided, Profiler assumes that it needs to create
-	a profile and not an Env var*/
-	if paramValue == "" {
-		paramName = paramName + "/"
-	}
-
-	var input = &ssm.PutParameterInput{}
-	input.SetName("/profiler/" + paramName)
-	input.SetType("String")
-	input.SetTags(tags)
-	input.SetTier(config.Get().SSMParameterTier)
-	input.SetValue(paramValue)
-
-	_, err := svc.PutParameter(input)
+	exists, err := ProfileExist(profileName)
 	if err != nil {
 		return err
+	}
+
+	if !exists {
+		err = putParameter(
+			parameterPath(profileName, "profile_name"),
+			profileName,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := 0; i < len(kvs); i += 2 {
+		err = putParameter(parameterPath(profileName, kvs[i]), kvs[i+1])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-/*RemoveParameter is used to delete a Profile or Env var from SSM*/
-func RemoveParameter(paramName string) error {
-	svc := newSSMService()
+/*SaveProfile write every variable of the given profile to AWS SSM*/
+func SaveProfile(p profile.Profile) error {
+	for _, kv := range p.KVs {
+		if err := putParameter(parameterPath(p.Name, kv.Key), kv.Value); err != nil {
+			return err
+		}
+	}
 
-	var input = &ssm.DeleteParameterInput{}
-	input.SetName(paramName)
+	return nil
+}
 
-	_, err := svc.DeleteParameter(input)
+// RemoveProfile delete the named variables from the given profile, or the
+// whole profile when no variable is named.
+func RemoveProfile(args []string) error {
+	if len(args) == 0 {
+		return errors.New("Please provide a profile name")
+	}
+
+	profileName, keys := args[0], args[1:]
+
+	exists, err := ProfileExist(profileName)
 	if err != nil {
 		return err
+	}
+
+	if !exists {
+		return errors.New("The provided Profile does not exist")
+	}
+
+	// No variable named: remove the profile, which in SSM means removing
+	// every parameter under its folder.
+	if len(keys) == 0 {
+		keys, err = ShowProfile(profileName)
+		if err != nil {
+			return err
+		}
+	} else {
+		// profile_name is what makes the profile a profile: it goes with
+		// the whole profile, never on its own. Same rule as consul and
+		// vault. Deleting from a copy, so args is not rewritten under
+		// the caller.
+		keys = slices.DeleteFunc(slices.Clone(keys), func(key string) bool {
+			return key == "profile_name"
+		})
+	}
+
+	for _, key := range keys {
+		if err := deleteParameter(parameterPath(profileName, key)); err != nil {
+			return err
+		}
 	}
 
 	return nil
