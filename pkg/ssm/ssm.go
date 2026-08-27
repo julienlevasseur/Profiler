@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/julienlevasseur/profiler/config"
@@ -29,7 +30,14 @@ const profilesPath = "/profiler"
 // absent on a machine that is not an EC2 instance.
 const probeTimeout = 2 * time.Second
 
-func newSSMService() (*ssm.SSM, error) {
+// awsConfig is the SDK configuration both the SSM client and the credential
+// probe are built from, so the two never disagree about which credentials the
+// calls would be made with.
+//
+// Credentials are left unset unless profiler was configured with a pair of
+// its own: unset is what lets the SDK's own chain answer -- the AWS_*
+// environment variables, the shared credentials file, an instance role.
+func awsConfig() *aws.Config {
 	cfg := config.Get()
 
 	awsCfg := aws.NewConfig().WithRegion(cfg.SSMRegion)
@@ -41,7 +49,19 @@ func newSSMService() (*ssm.SSM, error) {
 		awsCfg = awsCfg.WithEndpoint(cfg.SSMEndpoint)
 	}
 
-	sess, err := session.NewSession(awsCfg)
+	if cfg.AWS_ACCESS_KEY_ID != "" && cfg.AWS_SECRET_ACCESS_KEY != "" {
+		awsCfg = awsCfg.WithCredentials(credentials.NewStaticCredentials(
+			cfg.AWS_ACCESS_KEY_ID,
+			cfg.AWS_SECRET_ACCESS_KEY,
+			cfg.AWS_SESSION_TOKEN,
+		))
+	}
+
+	return awsCfg
+}
+
+func newSSMService() (*ssm.SSM, error) {
+	sess, err := session.NewSession(awsConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -160,19 +180,20 @@ func deleteParameter(name string) error {
 // AWS setup at all. Answering false is what keeps `profiler list` usable
 // there: cmd/list skips a repository that is not configured.
 func IsConfigured() bool {
-	cfg := config.Get()
-
-	if cfg.AWS_ACCESS_KEY_ID == "" || cfg.AWS_SECRET_ACCESS_KEY == "" {
-		return false
-	}
-
 	sess, err := session.NewSession(
-		aws.NewConfig().
-			WithRegion(cfg.SSMRegion).
+		awsConfig().
 			WithHTTPClient(&http.Client{Timeout: probeTimeout}).
 			WithMaxRetries(0),
 	)
 	if err != nil {
+		return false
+	}
+
+	// SSM cannot be reached without a region, and every call would fail
+	// with MissingRegion. NewSession fills the region in from AWS_REGION
+	// when ssmRegion is unset, so this reads the resolved session rather
+	// than the configuration.
+	if aws.StringValue(sess.Config.Region) == "" {
 		return false
 	}
 
