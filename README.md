@@ -1,44 +1,287 @@
+<div align="center">
+
+<img src="images/logo.png" alt="Profiler" width="320">
+
 # Profiler
 
-![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)
-![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)
+**Save your shell environment as named profiles. Switch between them with one command.**
 
-![images/logo.png](images/logo.png)
+[![Tests status](https://github.com/julienlevasseur/Profiler/workflows/Test/badge.svg)](https://github.com/julienlevasseur/Profiler/actions)
+[![GoReleaser](https://github.com/julienlevasseur/Profiler/workflows/goreleaser/badge.svg)](https://github.com/julienlevasseur/Profiler/actions)
 
-Profiler is a CLI tool to organize your environment variables as profiles.
-It is not intended to manage software configuration (look at [viper](github.com/spf13/viper) for this), it focus on developer environment to set temporary specific environments.
+[What is this?](#what-is-this) ·
+[Install](#install) ·
+[5-minute tour](#5-minute-tour) ·
+[How it works](#how-it-works) ·
+[Commands](#command-reference) ·
+[Configuration](#configuration-reference)
 
-> **NOTE**
-> Due to the scope of exported variable in shells, Profiler needs to spawn a new shell instance
-> when using a profile.
-> This has the advantage to allow you to simply exit the spawned instance to disable the profile
-> activation, but, it limits the access to the shell history. You can refer to your shell
-> documentation to find the best way to share history between your shell levels.
+</div>
 
-## Usage
+---
 
-One of the reasons Profiler has been created is to easily switch between cloud providers
-or Hashicorp stack environments/clusters.
-If you're a Kubernetes user, you can see Profiler as "universal" [kubectx](https://github.com/ahmetb/kubectx).
-But is also does more !
+## What is this?
 
-Profiler allow you to regroup environement variable in profiles but it will also reads local files (.env.yml, .envrc, .env) to expand your profile based on your local directory (as [direnv](https://github.com/direnv/direnv) (see below)).
+> **In one sentence:** Profiler is a bookmark manager for your terminal's environment variables.
 
-So basically, Profiler allows you to:
+If you have never dealt with this problem, here is what it looks like.
 
-* Load cloud provider/stacks credentials/configs to switch between accounts/environments
-* Switch accross Kubernetes namespaces
-* Create per-project isolated development environments
-* Load secrets/configs for deployment
-* Share profiles accross teams (with SSM & Consul profiles remote storage)
+Your shell carries a bag of **environment variables** — `AWS_ACCESS_KEY_ID`,
+`KUBECONFIG`, `DATABASE_URL`, and so on. Command-line tools read that bag to
+decide *which account*, *which cluster*, *which database* they talk to. Change
+the bag and the same `terraform apply` hits a different cloud account.
 
-### The profile file
+So people end up doing this, several times a day:
 
-A profile file is a simple YAML file that represent the vars you need for this profile :
+```bash
+# "let me switch to the production account…"
+export AWS_ACCESS_KEY_ID=AKIA................
+export AWS_SECRET_ACCESS_KEY=wJalr...........
+export AWS_DEFAULT_REGION=eu-west-1
+export CONSUL_HTTP_TOKEN=3d4a9009-eef0-4444-92c4-322e6a853385
+export KUBECONFIG=~/.kube/prod.yaml
+# …and then forget to unset half of them
+```
+
+Copy-pasted from a wiki. Or from a `notes.txt`. Or from a chunk of `.bashrc`
+that is commented out and uncommented by hand. It is tedious, it is easy to get
+wrong, and getting it wrong means running the right command against the **wrong
+account**.
+
+**Profiler replaces all of that with:**
+
+```bash
+$ profiler use prod
+```
+
+<div align="center">
+
+```mermaid
+flowchart LR
+    subgraph BEFORE["❌ Without Profiler"]
+        direction TB
+        B1["Open a wiki page"] --> B2["Copy 6 export lines"]
+        B2 --> B3["Paste into the shell"]
+        B3 --> B4["Hope nothing is stale"]
+        B4 --> B5["Forget to unset them"]
+    end
+
+    subgraph AFTER["✅ With Profiler"]
+        direction TB
+        A1["profiler use prod"] --> A2["Environment is set"]
+        A2 --> A3["exit"]
+        A3 --> A4["Environment is gone"]
+    end
+
+    BEFORE ~~~ AFTER
+```
+
+</div>
+
+### Is Profiler for me?
+
+| You... | Profiler helps? |
+|---|---|
+| Juggle several AWS / GCP / OpenStack accounts | ✅ Yes — one profile per account |
+| Switch between Kubernetes clusters and namespaces | ✅ Yes — think "universal [kubectx](https://github.com/ahmetb/kubectx)" |
+| Work on projects that each need their own variables | ✅ Yes — like [direnv](https://direnv.net/), and it reads direnv's files too |
+| Want your team to share one set of environments | ✅ Yes — profiles can live in Consul, AWS SSM or Vault |
+| Want to configure an application you are shipping | ❌ No — use [viper](https://github.com/spf13/viper) or your framework's config system |
+
+Profiler is a **developer convenience tool for your own terminal**. It is not a
+secrets manager and not an application configuration framework.
+
+---
+
+## Install
+
+<details open>
+<summary><b>Download a release binary</b> (recommended)</summary>
+
+Grab the archive for your OS and architecture from the
+[Releases page](https://github.com/julienlevasseur/Profiler/releases), then:
+
+```bash
+tar -xzf profiler_Linux_x86_64.tar.gz
+sudo mv profiler /usr/local/bin/
+profiler help
+```
+
+Linux and macOS builds are published for `amd64`, `arm64`, `arm` and `386`.
+
+</details>
+
+<details>
+<summary><b>With Go</b></summary>
+
+```bash
+go install github.com/julienlevasseur/profiler@latest
+```
+
+</details>
+
+<details>
+<summary><b>From source</b></summary>
+
+```bash
+git clone https://github.com/julienlevasseur/Profiler.git
+cd Profiler
+make linux      # or: make darwin
+./bin/profiler help
+```
+
+</details>
+
+---
+
+## 5-minute tour
+
+### 1. Create a profile
+
+```bash
+$ profiler add aws_dev
+$ profiler add aws_dev AWS_ACCESS_KEY_ID AKIAIOSFODNN7EXAMPLE
+$ profiler add aws_dev AWS_DEFAULT_REGION us-east-1
+```
+
+That wrote a plain YAML file at `~/.profiles/.aws_dev.yml`:
 
 ```yaml
 profile_name: aws_dev
-shell: /usr/bin/zsh
+AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
+AWS_DEFAULT_REGION: us-east-1
+```
+
+You can equally well create that file in your editor — there is nothing magic
+about it. (Note the leading dot in the **filename**: profile files must be
+hidden files.)
+
+### 2. See what you have
+
+```bash
+$ profiler list
+aws_dev
+aws_prod
+personal
+```
+
+### 3. Use it
+
+```bash
+$ profiler use aws_dev
+```
+
+You are now in a shell where those variables are set. Check it:
+
+```bash
+$ echo $AWS_DEFAULT_REGION
+us-east-1
+$ profiler status
+aws_dev
+```
+
+### 4. Stop using it
+
+```bash
+$ exit
+```
+
+That is it. `exit` puts you back exactly where you were, with the variables
+gone. There is no "unset" command to remember, and no way to leave a stale
+credential lying around in your shell.
+
+<div align="center">
+<img src="images/usage_demo.png" alt="profiler list, then profiler use, with the profile name in the prompt" width="700">
+<br>
+<em>Here the active profile is shown right in the prompt — see <a href="#show-the-active-profile-in-your-prompt">Tips</a>.</em>
+</div>
+
+---
+
+## How it works
+
+This is the one mechanism worth understanding, because everything else follows
+from it.
+
+### Why a new shell?
+
+A program **cannot** change the environment of the shell that started it. That
+is a hard rule of Unix processes: a child gets a *copy* of its parent's
+environment, and changes to the copy die with the child. It is the reason
+`direnv`, `nvm` and friends have to install a shell hook.
+
+Profiler takes the other route: instead of trying to modify your shell, it
+**starts a new one** with the environment already in place.
+
+```mermaid
+flowchart LR
+    A["Your shell<br/><i>no profile</i>"] -->|"profiler use aws_dev"| B["A new shell<br/><i>AWS_* variables set</i>"]
+    B -->|"exit"| A
+```
+
+That single design choice buys the two properties that define the tool:
+
+| Consequence | Why it matters |
+|---|---|
+| 🎁 **`exit` is the "off switch"** | You can never forget to clean up. Leaving the shell *is* deactivating the profile. |
+| 🧅 **Profiles nest** | Each `use` is another shell level, so profiles stack and unstack like layers. |
+| ⚠️ **Shell history is per-level** | The new shell has its own history. See [Tips](#share-shell-history-across-levels) for the two-line fix. |
+
+### The full picture
+
+When you run `profiler use aws_dev`, this happens:
+
+```mermaid
+flowchart TD
+    START(["profiler use aws_dev"]) --> FIND
+
+    subgraph FIND["1 · Find the profile"]
+        direction LR
+        L["📁 Local file<br/>~/.profiles/.aws_dev.yml"]
+        C["🌐 Consul KV"]
+        S["🌐 AWS SSM"]
+        V["🌐 Vault"]
+    end
+
+    FIND --> DIR
+
+    subgraph DIR["2 · Add this directory's variables"]
+        direction LR
+        D1[".profiler"] --> D2["*.env"] --> D3[".env.yml"] --> D4[".envrc"]
+    end
+
+    DIR --> STACK["3 · Merge with any profile already in use"]
+    STACK --> K8S{"K8S_NAMESPACE set?"}
+    K8S -->|yes| KUBE["kubectl config set-context --current --namespace=…"]
+    K8S -->|no| SPAWN
+    KUBE --> SPAWN["4 · Write .profiler, then exec a new shell"]
+    SPAWN --> DONE(["🎉 You are in the profile"])
+```
+
+## The three things Profiler reads
+
+Profiler builds your environment out of up to three ingredients. You can use
+just the first one and ignore the rest.
+
+```mermaid
+flowchart TB
+    P["<b>1 · The profile</b><br/>~/.profiles/.aws_dev.yml<br/><i>the same everywhere you go</i>"]
+    E["<b>2 · The directory's env files</b><br/>.env.yml / .envrc / *.env<br/><i>specific to this project</i>"]
+    S["<b>3 · The profile already in use</b><br/><i>what you had before this command</i>"]
+    P --> M["🍲 One merged environment"]
+    E --> M
+    S --> M
+    M --> SH["A new shell"]
+```
+
+### 1 · Profiles — "which account am I?"
+
+A profile is a YAML file: one key per environment variable.
+
+```yaml
+# ~/.profiles/.aws_dev.yml
+profile_name: aws_dev                        # required, names the profile
+shell: /usr/bin/zsh                          # optional, and never exported
 AWS_ACCESS_KEY_ID: xxxxxxxxXXXXXxxxxxxxx
 AWS_SECRET_ACCESS_KEY: xxxxxxxxXXXXXxxxxxxxx
 AWS_DEFAULT_REGION: us-east-1
@@ -46,33 +289,180 @@ CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 TF_VAR_CONSUL_HTTP_TOKEN: xxxxxxxxXXXXXxxxxxxxx
 ```
 
-These profile files have to be located in `profilesFolder` and named like `.FooBar.yml`.
+Two keys are special and are **not** exported as variables:
 
-Profiler support external sources for profiles.
-This is useful if you share environment variable in your team or if you want to use a specific set of of env vars on multiple computers.
+- **`profile_name`** — the name Profiler and `profiler status` use.
+- **`shell`** — which shell to spawn for this profile.
 
-### The SSM profile
+> [!IMPORTANT]
+> Profile files live in `profilesFolder` (default `~/.profiles`) and their
+> **filenames must start with a dot**:
+>
+> ```
+> ~/.profiles/
+> ├── .aws_dev.yml
+> ├── .aws_prod.yml
+> └── .personal.yml
+> ```
+>
+> A file named `aws_dev.yml`, with no leading dot, is not seen.
 
-A profile stored in SSM will be split in multiple parameters:
+### 2 · Directory env files — "which project am I in?"
 
-* the profile name (created by default when the profile is created with `profiler ssm add`)
-* one parameter per variable contained in the profile
+Inspired by (and compatible with) [direnv](https://direnv.net/): drop a file in
+a project directory and Profiler folds it in whenever you run `profiler` there.
 
-Example:
+<table>
+<tr><th>File</th><th>Format</th><th>Example</th></tr>
+<tr><td><code>.env.yml</code></td><td>YAML</td><td>
 
-|  Name | Type  |  Value | Tags |
-|-------|-------|--------|------|
-| /profiler/ProfileName/profile_name | String | $ProfileName | `profiler: true` |
-| /profiler/ProfileName/Key | String | $Value | `profiler: true` |
+```yaml
+AWS_DEFAULT_REGION: us-east-2
+TF_VAR_project_name: my_awesome_project
+```
 
-### The Consul profile
+</td></tr>
+<tr><td><code>.envrc</code></td><td>shell</td><td>
 
-A profile stored in Consul will be in a `profiler` KV folder with a Key per
-profile and YAML Value.
+```bash
+export FOO=bar
+```
 
-Example:
+</td></tr>
+<tr><td><code>*.env</code></td><td>shell</td><td>
 
-Key: `/profiler/example_consul_profile`
+```bash
+export FOO=bar
+```
+
+</td></tr>
+</table>
+
+This is what lets one profile hold your AWS credentials while each repository
+adds its own region, Terraform variables or cluster name.
+
+**Precedence — later wins:**
+
+```mermaid
+flowchart LR
+    A["Profile<br/>~/.profiles/.aws_dev.yml"]
+    B[".profiler"] --> C["*.env"] --> D[".env.yml"] --> E[".envrc"]
+    A --> B
+    E --> F["🏁 Final value"]
+    style A fill:#1f6feb,color:#fff
+    style F fill:#238636,color:#fff
+```
+
+So if the profile says `AWS_DEFAULT_REGION: us-east-1` and the directory's
+`.env.yml` says `us-east-2`, you get **us-east-2**.
+
+> [!TIP]
+> Running bare `profiler` (no subcommand) loads *only* the directory files, no
+> named profile. Handy in a project that needs no cloud credentials.
+
+Some projects ship a template env file with fake values — `example.env`,
+`sample.env`. Those are ignored by default; extend the list with
+[`ignoredFiles`](#ignoredfiles).
+
+### 3 · Stacking — layering one profile on another
+
+`profiler use` **adds to** what you already have rather than replacing it.
+
+```bash
+$ profiler use aws_dev      # exports AWS_PROFILE, AWS_REGION
+$ profiler use kube_dev     # exports KUBECONFIG, K8S_NAMESPACE, AWS_REGION
+$ profiler status
+aws_dev+kube_dev
+```
+
+`AWS_PROFILE` is still exported, `KUBECONFIG` is now exported too, and on
+`AWS_REGION` — which both profiles set — the one you applied last wins.
+
+```mermaid
+flowchart TB
+    subgraph L2["shell level 2 — aws_dev + kube_dev"]
+        direction LR
+        V2["AWS_PROFILE=dev · KUBECONFIG=… · K8S_NAMESPACE=… · <b>AWS_REGION=kube_dev's</b>"]
+    end
+    subgraph L1["shell level 1 — aws_dev"]
+        direction LR
+        V1["AWS_PROFILE=dev · AWS_REGION=aws_dev's"]
+    end
+    subgraph L0["shell level 0 — no profile"]
+        direction LR
+        V0["your normal environment"]
+    end
+    L0 -->|"profiler use aws_dev"| L1
+    L1 -->|"profiler use kube_dev"| L2
+    L2 -.->|"exit"| L1
+    L1 -.->|"exit"| L0
+```
+
+**To unstack, leave the shell:**
+
+```bash
+$ exit    # back to aws_dev
+$ exit    # back to no profile
+```
+
+Stacking works across backends too — a local profile stacks onto a Consul or
+SSM one just the same.
+
+<details>
+<summary>How Profiler keeps track (the <code>profile_keys</code> variable)</summary>
+
+Profiler exports one variable of its own, `profile_keys`, listing the variables
+the current profile owns. It is what lets the next `profiler use` tell your
+profile's variables apart from the rest of your environment.
+
+A useful side effect: `unset SOME_VAR` takes that variable out of the profile,
+so it is not carried into the next one.
+
+</details>
+
+---
+
+## Where profiles can live
+
+By default profiles are files on your machine. They can also come from a shared
+backend, so a whole team works from one set of environments — or so your laptop
+and your workstation stay in sync.
+
+```mermaid
+flowchart LR
+    U["👤 you"] --> CLI["profiler"]
+    CLI --> R{{"repository layer"}}
+    R --> LOC["📁 <b>local</b><br/>~/.profiles/*.yml"]
+    R --> CON["🟣 <b>consul</b><br/>KV store"]
+    R --> SSM["🟠 <b>ssm</b><br/>AWS Parameter Store"]
+    R --> VLT["⚫ <b>vault</b><br/>HashiCorp Vault"]
+```
+
+Every backend supports the same five verbs, so a command means the same thing
+everywhere — only the store behind it changes:
+
+| Verb | `local` | `consul` | `ssm` | `vault` |
+|---|---|---|---|---|
+| `list` | profile files in `profilesFolder` | keys under `consulProfilesPath` | profiles under the SSM path | secrets under `vaultProfilesPath` |
+| `show` | variable names in the file | variable names in the KV entry | variable names of the parameters | variable names in the secret |
+| `use` | export the file's vars | export the KV entry's vars | export the parameters | export the secret's vars |
+| `add` | append to the file | write to the KV | put as SSM parameters | write to the secret |
+| `remove` | delete the file, or one var | delete the KV entry, or one var | delete the parameters, or one | delete the secret, or one var |
+
+Local is the default and its verbs are top level (`profiler add`,
+`profiler show`). Remote backends namespace them (`profiler ssm add`,
+`profiler consul show`), and `use` also accepts `profiler use <backend> <name>`.
+
+`profiler list` shows **everything, from every backend at once** — and skips
+any backend that does not answer, so a laptop with no Consul reachable simply
+lists the local profiles.
+
+<details>
+<summary><b>Consul</b> — how a profile is stored</summary>
+
+One KV key per profile, with a YAML value.
+
+Key: `profiler/example_consul_profile`
 Value:
 
 ```yaml
@@ -80,65 +470,173 @@ profile_name: test_consul
 FOO: BAR
 ```
 
-### The config file
+Configure with `consulAddress`, and `consulToken` **or** `consulTokenFile` if
+your Consul uses ACLs. Profiler decides whether to use Consul by *asking* it: if
+something answers at `consulAddress`, its profiles are listed; if nothing does,
+Consul is skipped.
 
-The config file is located by default in `~/.profiler_cfg.yml`.
+</details>
 
-You can override this location by setting the `PROFILER_CFG` env var. It accepts
-either a config file or a directory to look in:
+<details>
+<summary><b>AWS SSM</b> — how a profile is stored</summary>
+
+One parameter per variable, plus one for the profile name, all tagged
+`profiler: true`.
+
+| Name | Type | Value | Tags |
+|---|---|---|---|
+| `/profiler/ProfileName/profile_name` | String | `$ProfileName` | `profiler: true` |
+| `/profiler/ProfileName/Key` | String | `$Value` | `profiler: true` |
+
+Credentials come from the standard
+[AWS SDK credential chain](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
+— environment, shared credentials file, or instance role. Profiler decides
+whether to use SSM by *resolving* those credentials rather than by calling AWS:
+if the chain answers, `/profiler` parameters show up in `profiler list`; if not,
+SSM is skipped.
+
+> On a machine that has AWS credentials but no interest in SSM profiles, drop
+> `ssm` from [`supportedRepositories`](#general-options) so `profiler list`
+> stops asking.
+
+</details>
+
+<details>
+<summary><b>Vault</b> — how a profile is stored</summary>
+
+One secret per profile under `vaultProfilesPath`. Configure with
+`vaultAddress`, `vaultToken` and optionally `vaultProfilesPath`.
+
+</details>
+
+---
+
+## Command reference
+
+| Command | What it does |
+|---|---|
+| `profiler` | Load the current directory's env files (`.profiler`, `*.env`, `.env.yml`, `.envrc`) — no named profile |
+| `profiler list` | List every available profile, from every backend |
+| `profiler show <profile>` | List the variable names a profile sets |
+| `profiler add <profile>` | Create a profile that sets only its own name |
+| `profiler add <profile> <KEY> <VALUE>` | Add a variable to a profile, creating the profile if needed |
+| `profiler remove <profile>` | Delete a profile |
+| `profiler remove <profile> <KEY>...` | Drop one or more variables from a profile |
+| `profiler use <profile>` | Enter a new shell with the profile applied (stacks onto any profile in use) |
+| `profiler use` | Same, from the `.profiler` file and env files in this directory |
+| `profiler use <backend> <profile>` | Use a profile from `consul`, `ssm` or `vault` |
+| `profiler status` | Print the profile currently in use — `A+B` when stacked |
+| `profiler aws_mfa <token>` | Re-authenticate the active AWS profile with an MFA token |
+| `profiler ssm <subcommand>` | `add`, `list`, `remove`, `show`, `use` against AWS SSM |
+| `profiler consul <subcommand>` | The same, against Consul |
+| `profiler vault <subcommand>` | The same, against Vault |
+| `profiler help` | Show help |
+
+### AWS MFA
+
+`profiler aws_mfa <token>` takes the AWS credentials in the profile you are
+already using and swaps them for MFA-backed session credentials — access key,
+secret key and session token.
+
+<div align="center">
+<img src="images/aws_mfa_demo.png" alt="profiler aws_mfa in action" width="700">
+</div>
+
+> [!NOTE]
+> It needs `AWS_MFA_USERNAME` set in your profile.
+
+### Kubernetes namespaces
+
+If a profile sets `K8S_NAMESPACE`, Profiler switches `kubectl` to that namespace
+when you use the profile. Turn it off with
+[`k8sSwitchNamespace: False`](#general-options).
+
+---
+
+## Configuration reference
+
+The config file lives at `~/.profiler_cfg.yml`. A minimal, complete example:
+
+```yaml
+profilesFolder: /home/me/.profiles
+shell: bash                   # optional — your current shell by default
+preserveProfile: False        # optional — true by default
+k8sSwitchNamespace: False     # optional — true by default
+showRepoSourceInList: True    # optional — false by default
+```
+
+<details>
+<summary><b>Where the config file is found</b></summary>
+
+Override the location with `PROFILER_CFG`, which accepts either a file or a
+directory to search:
 
 ```bash
-# the config file itself:
-export PROFILER_CFG="/my/prefered/path/my_cfg.yml"
-
-# or a directory, searched for a .profiler_cfg.yml file:
-export PROFILER_CFG="/my/prefered/path"
+export PROFILER_CFG="/my/preferred/path/my_cfg.yml"   # the file itself
+export PROFILER_CFG="/my/preferred/path"              # a dir holding .profiler_cfg.yml
 ```
 
 Profiler treats the value as a directory only if a directory already exists at
 that path; otherwise it is the config file.
 
-> **Note**
-> If no configuration file is found, a default one is created, pointing the
-> `profilesFolder` attribute to `$HOME/.profiles`. That applies to the default
-> `~/.profiler_cfg.yml` and to a `PROFILER_CFG` naming a file. When
-> `PROFILER_CFG` names an existing directory, profiler reads from it but does
-> not create a config file there.
+If no configuration file is found, a default one is created with
+`profilesFolder` pointing at `$HOME/.profiles`. That applies to the default
+`~/.profiler_cfg.yml` and to a `PROFILER_CFG` naming a file. When `PROFILER_CFG`
+names an existing directory, Profiler reads from it but does not create a config
+file there.
 
-#### Configuration options
+</details>
 
-##### shell
+### General options
 
-The profile file may contain the `shell` attribute. This attribute will never be exported as env variable. Its used to specify in which shell you want to spawn your profile.
+| Option | Default | What it does |
+|---|---|---|
+| `profilesFolder` | `$HOME/.profiles` | Where local profile files live |
+| `shell` | your current `$SHELL` | Which shell to spawn. A profile's own `shell:` key wins over this |
+| `preserveProfile` | `true` | Keep the `.profiler` file after use, or delete it |
+| `profilerFileName` | `.profiler` | Name of the generated file |
+| `k8sSwitchNamespace` | `true` | Run `kubectl` to switch namespace when a profile sets `K8S_NAMESPACE` |
+| `showRepoSourceInList` | `false` | Suffix listed profiles with the backend they came from |
+| `supportedRepositories` | `local, consul, ssm, vault` | Which backends to consult at all |
+| `ignoredFiles` | `example.env, sample.env` | Directory env files to skip |
+| `localProfiles` | *(unset)* | Narrow `profiler list` to these local profiles |
+| `consulProfiles` | *(unset)* | Narrow `profiler list` to these Consul profiles |
+| `ssmProfiles` | *(unset)* | Narrow `profiler list` to these SSM profiles |
 
-You can also set a `shell` in the configuration file. This can be helpful if you want to use a different shell than your current one when you use a profile.
+### Backend options
 
-> **Note**
->
-> The default shell is the current shell.
+| Option | Default | Example |
+|---|---|---|
+| `consulAddress` | `http://127.0.0.1:8500` | `http://consul.example.com:8500` |
+| `consulToken` | *(none)* | `3d4a9009-eef0-4444-92c4-322e6a853385` |
+| `consulTokenFile` | *(none)* | `/home/user/.consul_token` |
+| `consulProfilesPath` | `profiler` | `teams/platform/profiler` |
+| `ssmRegion` | `us-east-1` | `eu-west-1` |
+| `ssmParameterTier` | `Standard` | `Advanced` |
+| `ssmEndpoint` | *(the AWS endpoint for `ssmRegion`)* | `http://localhost:4566` |
+| `vaultAddress` | `http://127.0.0.1:8200` | `https://vault.example.com:8200` |
+| `vaultToken` | *(none)* | `5a78a463-1f9b-44cd-8ddd-8e03f3704772` |
+| `vaultProfilesPath` | `secret/metadata/profiler` | `secret/metadata/team-profiles` |
 
-> **Note**
->
-> Profiler has been tested only with bash and zsh.
-> Any contribution to validate other shells are welcome.
+`consulToken` and `consulTokenFile` are alternatives — use one or the other, or
+neither if your Consul has no ACLs. `ssmEndpoint` points Profiler at an SSM that
+is not AWS's own: localstack, a VPC endpoint, a FIPS endpoint.
 
-#### preserveProfile
+### A few options worth explaining
 
-This option allows you to decide if you want to preserve the `.profiler` file where you have used a profile or remove it once the profile is exported.
-With this option you can decide if you prefer to keep the `.profiler` files, so you can re-use a profile later (adding it to your global `.gitignore` is strongly recommended) or simply decide that you want to generate it every time.
+#### `preserveProfile`
 
-Reusing an already exported profile from a directory is done as simply as: `profiler use`.
+Every `profiler use` writes a `.profiler` file in the current directory
+recording the environment it built. Keeping it (the default) means you can
+re-enter the same environment later with a bare `profiler use`. Setting
+`preserveProfile: False` deletes it once the profile is exported.
 
-#### k8sSwitchNamespace
+> [!TIP]
+> Add `.profiler` to your **global** `.gitignore`.
 
-This option allows you to toggle the auto Kubernetes namespace switch.
-When enabled (by default), if the `K8S_NAMESPACE` is set in a profile, Profiler will switch to this namespace using the `kubectl` command.
+#### `showRepoSourceInList`
 
-#### showRepoSourceInList
-
-This option allows you to append the repository a profile comes from to its
-name in `profiler list` output. It is disabled by default, so profiles are
-listed by name alone:
+Off by default, so profiles list by name alone:
 
 ```bash
 $ profiler list
@@ -146,9 +644,8 @@ demo
 staging
 ```
 
-With `showRepoSourceInList: True`, every profile held by a remote repository
-(consul, ssm, vault) is suffixed with that repository's name, which is useful
-when the same profile name exists in more than one of them. Local profiles are
+On, every profile held by a remote backend is suffixed with that backend's name
+— useful when the same profile name exists in more than one. Local profiles are
 never suffixed:
 
 ```bash
@@ -158,17 +655,16 @@ staging (consul)
 staging (vault)
 ```
 
-#### localProfiles, consulProfiles, ssmProfiles
+#### `localProfiles`, `consulProfiles`, `ssmProfiles`
 
-These options narrow `profiler list` to a chosen set of profiles per
-repository. They are unset by default, and an unset (or empty) list means no
-limit -- every profile the repository holds is listed.
+These narrow `profiler list` to a chosen set per backend. Unset (or empty) means
+no limit — every profile the backend holds is listed.
 
 They are useful when a backend holds more profiles than a given machine cares
 about: a Consul shared between several teams, or an AWS account shared between
 stacks.
 
-```yml
+```yaml
 consulProfiles:
   - staging
   - prod
@@ -181,273 +677,87 @@ staging
 prod
 ```
 
-Each option narrows only its own repository, so the three are independent.
-A name listed here that the repository does not hold is simply not shown, with
-no warning -- which is what lets one config file be shared across machines that
-each hold a different subset of the profiles.
+Each option narrows only its own backend, so the three are independent. A name
+listed here that the backend does not hold is simply not shown, with no warning
+— which is what lets one config file be shared across machines that each hold a
+different subset of the profiles.
 
-> **Note**
->
-> Vault has no equivalent option, so vault profiles are never narrowed.
-> These options filter `profiler list` only: `profiler use` can still reach a
-> profile that the list does not show.
+> [!NOTE]
+> Vault has no equivalent option, so Vault profiles are never narrowed. And
+> these options filter `profiler list` only: `profiler use` can still reach a
+> profile the list does not show.
 
-#### ignoredFiles
+#### `ignoredFiles`
 
-This option allows you to ignore given files when using a profile.
-It is designed to ignore files with a specific name such as:
-
-- `example.env`
-- `sample.env`
-
-> These values are the one by default. You can add as many as you need.
-> ```
-> ignoredFiles:
->   - example.env
->   - sample.env
->   - NotThisOne.yml
->   - NotEvenThisOne.env.yml
-> ```
-
-This kind of file is usually used in projects to list variables supported by the app. They are often delivered with fake values or even blank values and not ignoring them may generate an improper profile.
-
-##### Example of a configuration file
-
-```yml
-profilesFolder: /My/Home/.profiles
-shell: bash                   # Optional (current shell by default)
-preserveProfile: False        # Optional (true by default)
-k8sSwitchNamespace: False     # Optional (true by default)
-showRepoSourceInList: True    # Optional (false by default)
-```
-
-### The profile definition
-
-#### Via the profiler command
-
-The `profiler add` command allow you to create profiles and add variable to them:
-
-```bash
-profiler add MyProfile
-```
-
-will create a profile that only export its name (`profile_name` var)
-
-```bash
-profiler add MyProfile Key Value
-```
-
-will add the Key=Value env var to MyProfile (if the profile does not exists it will be created).
-
-#### Manually
-
-If you want to set env vars or profiles, you can create as many profile files as you want into the `profilesFolder`.
-
-> **Note**
->
-> **Be careful !** The profiles files have to be hidden (so prefixed by a `.`)
->
-> e.g:
->
-> ```bash
->/home/$USER/.profiles/
->└── .example-aws-us-east-1.yml
->```
-
-### The yaml env file
-
-Inspired by [direnv](https://direnv.net/), this feature allow you to create a `.env.yml` file into a folder that will be sourced when you call this tool inside this folder.
-
-When you call `profiler` without arguments, the program will look on the current working directory for a file called `.env.yml` and source it if found.
-
-When you call `profiler use ${profile}`, the program will also look for `.env/yml` and append its content to the specified profile.
-
-This feature is usefull if you want to have immutable set a vars for a cloud provider (the profile) but specific vars for a specific project, repo, branch, etc
-For example, you can want to set your AWS keys in the `my_aws_account` profile, but having different `AWS_DEFAULT_REGION` or dedicated Terraform vars in several projects.
-To accomplish that, just create a `/etc/profiler/.my_aws_account.yml` profile file and in your repos, a .env.yml per repo with the dedicated set of vars inside.
-
-Example of a `.env.yml` file:
+Projects often ship a template env file listing the variables an app supports,
+filled with fake or blank values. Sourcing it would build a broken profile, so
+`example.env` and `sample.env` are ignored by default. Add your own:
 
 ```yaml
-AWS_DEFAULT_REGION: us-east-2
-TF_VAR_project_name: my_awesome_project
+ignoredFiles:
+  - example.env
+  - sample.env
+  - NotThisOne.yml
+  - NotEvenThisOne.env.yml
 ```
 
-> **Note:** The `.env.yml` file override the double env vars that it can find in the profile.
-
-### .envrc support
-
-To go deeper into the `direnv` inspiration/compatibility, profiler now support `.envrc` files.
-
-Example of a `.envrc` file:
-
-```bash
-export FOO=bar
-```
-
-### .env support
-
-To complete the non `yaml` files support, the 1.3.0 version has seen the addition of `*.env` files support.
-
-Example of `.env` file:
-
-```bash
-export FOO=bar
-```
-
-### Remote storage
-
-From version 3.4.0, it's now possible to store profiles remotely.
-The two supported provider (so far) are:
-
-* AWS SSM
-* Consul
-
-#### AWS SSM
-
-##### Credentials
-
-To access profiles stored in the AWS SSM Parameters Store, Profiler requires AWS
-credentials.
-To configure the AWS credentials, you can refer to the AWS SDK documentation: [](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
-
-Profiler decides whether to use SSM by resolving those credentials, rather than
-by calling AWS: if the AWS credential chain answers -- from the environment, the
-shared credentials file, or an instance role -- the profiles stored under
-`/profiler` appear in `profiler list`; if it does not, SSM is skipped and the
-other repositories are listed as usual.
-
-On a machine that has AWS credentials but no interest in SSM profiles, drop
-`ssm` from `supportedRepositories` to keep `profiler list` from asking.
-
-##### Configuration
-
-Supported SSM configuration options:
-
-|  Name | Value example | Default |
-|-------|-------|-------|
-| ssmRegion | eu-west-1 | us-east-1 |
-| ssmParameterTier | Advanced | Standard |
-| ssmEndpoint (optional) | http://localhost:4566 | the AWS endpoint for ssmRegion |
-
-`ssmEndpoint` points profiler at an SSM that is not AWS's own -- localstack, a
-VPC endpoint, a FIPS endpoint. Left unset, the region's AWS endpoint is used.
-
-#### Consul
-
-To access profiles stored in the Consul KV Store, Consul connection details can be provided via profiler_cfg.
-
-Supported Consul configuration options:
-
-|  Name | Value example | Default |
-|-------|-------|-------|
-| consulAddress | http://consul.example.com:8500 | http://127.0.0.1:8500 |
-| consulToken (optional) | 3d4a9009-eef0-4444-92c4-322e6a853385 | none |
-| consulTokenFile (optional) | /home/user/.consul_token | none |
-
-Profiler decides whether to use Consul by asking it, rather than by guessing
-from the configuration: if a Consul answers at `consulAddress`, its profiles
-appear in `profiler list`; if nothing answers, Consul is skipped and the other
-repositories are listed as usual.
-
-> **Note:**
-> The consulToken and consulTokenFile configurations are optional. You can choose to use one or the other. And of course, if your Consul instance does not use ACLs, they're not required.
-
-#### Vault
-
-|  Name | Value example |
-|-------|---------------|
-| vaultAddress | https://127.0.0.1:8200 |
-| vaultToken | 5a78a463-1f9b-44cd-8ddd-8e03f3704772 |
-| vaultProfilesPath (optional) | /secret/data/profiler |
-
-### The profiler command
-
-* `profiler` - Search for env files and source them if they exists.
-* `profiler` `list` - list the available profiles.
-* `profiler` `add` `${profile_name}` `${key}` `${value}` - create the given profile and or add the given env var to the profile.
-* `profiler` `remove` `${profile_name}` `${key}` - remove the given profile or the variable matching the $key from the given profile.
-* `profiler` `use` `${profile_name}` - Actually use the specified profile, if no profile name specified, search for .profiler file and env files and export the generated profile from them. Profiles stack: see [Stacking profiles](#stacking-profiles).
-* `profiler` `aws_mfa` `${MFA Token}` - Need an already exported AWS profile. Authenticate to AWS with MFA Token. (Surcharge the current profile with Secret Key, Access Key Id and Token from MFA auth.)
-* `profiler` `ssm` `${subcommand}` - Interact with remote profiles stored in AWS SSM: `add`, `list`, `remove`, `show` and `use`, which take the same arguments as their local equivalents.
-* `profiler` `consul` `${subcommand}` - The same, for profiles stored in Consul.
-* `profiler` `vault` `${subcommand}` - The same, for profiles stored in Vault.
-* `profiler` `help` - Display the help message.
-
-### Stacking profiles
-
-`profiler use` layers the profile onto whatever is already in use rather than
-replacing it. Both profiles' variables are exported, and on a variable they
-both set, the one you just applied wins:
-
-```bash
-$ profiler use aws_dev      # exports AWS_PROFILE, AWS_REGION
-$ profiler use kube_dev     # exports KUBECONFIG, K8S_NAMESPACE, AWS_REGION
-$ profiler status
-aws_dev+kube_dev
-```
-
-`AWS_PROFILE` is still exported, `KUBECONFIG` is now exported too, and
-`AWS_REGION` holds `kube_dev`'s value. This works across backends as well —
-a local profile stacks onto an SSM or Consul one just the same.
-
-`profile_name` names the whole stack, so a PS1 built on it shows every profile
-in use.
-
-**Unstacking is leaving the shell.** Every `profiler use` spawns a new shell,
-so `exit` drops back to the shell — and the environment — you had before it:
-
-```bash
-$ profiler use aws_dev
-$ profiler use kube_dev     # aws_dev+kube_dev
-$ exit                      # back to aws_dev
-$ exit                      # back to no profile
-```
-
-Profiler exports one variable of its own to make this work: `profile_keys`,
-listing the variables the current profile owns. It is what lets the next
-`profiler use` tell your profile's variables apart from the rest of your
-environment. `unset SOME_VAR` takes that variable out of the profile, so it is
-not carried into the next one.
+---
 
 ## Tips
 
-> **Note**
-> It's strongly recommend, for convenience, for you to add `.profiler` to your global `.gitignore`.
+### Show the active profile in your prompt
 
-Enabling Bash history transfer across shell instances example:
+`profile_name` is exported, so any prompt that can read an environment variable
+can display it. That is how the screenshots above show the profile in the
+prompt bar.
+
+With [powerline-shell](https://github.com/b-ryan/powerline-shell), there is a
+ready-made segment:
+[`cloud_profile.py`](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/cloud_profile.py)
+(and a [Terraform workspace segment](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/terraform_workspace.py)
+to go with it).
+
+### Share shell history across levels
+
+Because `profiler use` spawns a nested shell, that shell starts with its own
+history. In Bash, this makes history follow you up and down the levels — add to
 `.bashrc`:
 
 ```bash
 # append to the history file, don't overwrite it
 shopt -s histappend
-# Bash examines the value of the variable PROMPT_COMMAND before it prints each primary prompt.
-# By adding:
-# history -a -> the history is append to the current session history to the contents of the history file.
-# history -c -> ensure that we clear all the history entries kept currently in memory.
-# history -r -> reload the contents of HISTFILE in memory.
+# Bash examines PROMPT_COMMAND before printing each primary prompt:
+#   history -a  append this session's history to the history file
+#   history -c  clear the entries currently in memory
+#   history -r  reload the history file into memory
 PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
 ```
 
-## Use case example
+Zsh has equivalent options (`setopt SHARE_HISTORY`). Check your shell's
+documentation.
 
-Here's a use case example with several profiles: cloud providers and stacks env vars.
+> [!NOTE]
+> Profiler has been tested with **bash** and **zsh**. Contributions validating
+> other shells are very welcome.
 
-* Work AWS
-* Work OpenStack
-* Personal AWS
-* Personal Nomad/Consul Cluster
-...
+---
 
-For conveniance the `profile_name` var can be used in the PS1 to display which profile is currently in use :
+## A worked example
 
-![usage_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/usage_demo.png)
+One profile per cloud account and stack — work AWS, work OpenStack, personal
+AWS, a personal Nomad/Consul cluster:
 
-> **Note**
-> [Powerline-shell](https://github.com/b-ryan/powerline-shell) is the tool used in the example to customize my PS1.
-> If you use it too and want take advantage of it to display your *env profile* you can find the segment [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/cloud_profile.py) and a support of Terraform workspaces [here](https://github.com/julienlevasseur/powerline-shell/blob/master/powerline_shell/segments/terraform_workspace.py).
+```bash
+$ profiler list
+work_aws
+work_openstack
+perso_aws
+perso_nomad
+```
 
-Project's specific vars can be set via the `.env.yml` file. For instance, here's an example of an `.env.yml` file inside the folder for provisionning a Kubernetes cluster with [KOPS](https://github.com/kubernetes/kops):
+Then, inside a repository that provisions a Kubernetes cluster with
+[KOPS](https://github.com/kubernetes/kops), a `.env.yml` holds what is specific
+to *that project*:
 
 ```yaml
 KOPS_STATE_STORE: s3://my-project-kubernetes-aws-state
@@ -456,21 +766,34 @@ KUBE_USER: admin
 KUBE_PASSWORD: ***************
 ```
 
-### AWS MFA
+`profiler use work_aws` in that directory gives you the account credentials from
+the profile **and** the KOPS variables from the directory, in one shell you can
+`exit` out of when you are done.
 
-![aws_mfa_demo.png](https://github.com/julienlevasseur/profiler/raw/master/images/aws_mfa_demo.png)
+---
 
-> **Note**
-> The AWS MFA feature rely on the `AWS_MFA_USERNAME` env var. Be sure to have it set in your profile prior to use aws_mfa option.
+## Project layout
 
-## Concept summary
+For contributors — see [Design.md](Design.md) for the full rationale.
 
-![concept_summary.png](https://github.com/julienlevasseur/profiler/raw/master/images/concept_summary.png)
+```mermaid
+flowchart LR
+    CMD["<b>cmd/</b><br/>cobra commands"] --> REPO["<b>repository/</b><br/>IRepository interface<br/>+ factory"]
+    REPO --> PKG["<b>pkg/{local,consul,ssm,vault}/</b><br/>one implementation each"]
+    PKG --> PROF["<b>pkg/profile/</b><br/>the Profile type,<br/>merging and exec"]
+```
 
+Every command reaches a backend through the same `IRepository`, implemented once
+per backend. All four implement all five verbs; none is stubbed.
 
-NEW CONFIGS:
+- [CHANGELOG.md](CHANGELOG.md) — what changed, per release
+- [Design.md](Design.md) — the command/backend matrix and the recorded decisions
 
-* consulProfilesPath
-* vaultToken
-* vaultAddress
-* vaultProfilesPath
+## Related tools
+
+| Tool | Overlap |
+|---|---|
+| [direnv](https://direnv.net/) | Per-directory variables. Profiler reads direnv's `.envrc`, and adds named, portable profiles on top |
+| [kubectx](https://github.com/ahmetb/kubectx) / kubens | Kubernetes context switching. Profiler does the same for *any* tool driven by env vars |
+| [aws-vault](https://github.com/99designs/aws-vault) | AWS credentials specifically, with OS keychain storage. Profiler is multi-cloud but not a secure store |
+| [viper](https://github.com/spf13/viper) | Configuration *for an application you are writing* — a different job entirely |
