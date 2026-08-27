@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const consulRepo = "consul"
+const vaultRepo = "vault"
 
-var consulCmd = &cobra.Command{
-	Use:   "consul",
-	Short: "deal with remote profiles stored in Consul",
+var vaultCmd = &cobra.Command{
+	Use:   "vault",
+	Short: "deal with remote profiles stored in Hashicorp Vault",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 || args[0] == "help" {
 			cmd.Help()
@@ -22,26 +22,30 @@ var consulCmd = &cobra.Command{
 	},
 }
 
-var consulAddCmd = &cobra.Command{
+var vaultAddCmd = &cobra.Command{
 	Use:   "add [profile_name] [ENV_VAR=value]",
-	Short: "add the given profile or the given env var to the consul profile",
+	Short: "add the given profile or the given env var to the vault profile",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		c, err := repository.GetRepository(consulRepo)
+		c, err := repository.GetRepository(vaultRepo)
 		cmdErrorHandler(err)
 
 		c.Add(args)
 	},
 }
 
-var consulListCmd = &cobra.Command{
+var vaultListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "list remote profiles stored in Consul",
+	Short: "list remote profiles stored in Vault",
 	Run: func(cmd *cobra.Command, args []string) {
-		c, err := repository.GetRepository(consulRepo)
-		cmdErrorHandler(err)
+		v, err := repository.GetRepository(vaultRepo)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 
-		profiles, err := c.List()
+		profiles, err := v.List()
+		cmdErrorHandler(err)
 
 		for _, p := range profiles {
 			fmt.Println(p)
@@ -49,30 +53,27 @@ var consulListCmd = &cobra.Command{
 	},
 }
 
-var consulRemoveCmd = &cobra.Command{
+var vaultRemoveCmd = &cobra.Command{
 	Use:   "remove [profile_name] [ENV_VAR]",
-	Short: "remove the given profile or the given env var from the remote profile stored in Consul",
+	Short: "remove the given profile or the given env var from the remote profile stored in Vault",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		c, err := repository.GetRepository(consulRepo)
+		v, err := repository.GetRepository(vaultRepo)
 		cmdErrorHandler(err)
 
-		c.Remove(args)
+		v.Remove(args)
 	},
 }
 
-var consulShowCmd = &cobra.Command{
+var vaultShowCmd = &cobra.Command{
 	Use:   "show [profile_name]",
 	Short: "show given profile(s) variables name",
 	Run: func(cmd *cobra.Command, args []string) {
-		c, err := repository.GetRepository(consulRepo)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+		v, err := repository.GetRepository(vaultRepo)
+		cmdErrorHandler(err)
 
 		for _, p := range args {
-			vars, err := c.Show(p)
+			vars, err := v.Show(p)
 			cmdErrorHandler(err)
 
 			// Display Profile's name:
@@ -86,17 +87,15 @@ var consulShowCmd = &cobra.Command{
 	},
 }
 
-var consulUseCmd = &cobra.Command{
+var vaultUseCmd = &cobra.Command{
 	Use:   "use [profile_name]",
 	Short: "use the given Vault profile",
 	Run: func(cmd *cobra.Command, args []string) {
-
-		c, err := repository.GetRepository(consulRepo)
-		cmdErrorHandler(err)
-
 		for _, p := range args {
-			// prof, err := consul.GetProfile(p)
-			prof, err := c.Get(p)
+			v, err := repository.GetRepository(vaultRepo)
+			cmdErrorHandler(err)
+
+			prof, err := v.Get(p)
 			cmdErrorHandler(err)
 
 			err = profile.StackEnvironment(prof)
@@ -106,10 +105,10 @@ var consulUseCmd = &cobra.Command{
 }
 
 func init() {
-	consulCmd.AddCommand(consulAddCmd)
-	consulCmd.AddCommand(consulListCmd)
-	consulCmd.AddCommand(consulRemoveCmd)
-	consulCmd.AddCommand(consulShowCmd)
-	consulCmd.AddCommand(consulUseCmd)
-	RootCmd.AddCommand(consulCmd)
+	vaultCmd.AddCommand(vaultAddCmd)
+	vaultCmd.AddCommand(vaultListCmd)
+	vaultCmd.AddCommand(vaultRemoveCmd)
+	vaultCmd.AddCommand(vaultShowCmd)
+	vaultCmd.AddCommand(vaultUseCmd)
+	RootCmd.AddCommand(vaultCmd)
 }

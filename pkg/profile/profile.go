@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,16 +12,40 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/julienlevasseur/profiler/pkg/ssm"
-	"github.com/spf13/viper"
+	"github.com/julienlevasseur/profiler/config"
 )
+
+type KV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type Profile struct {
+	Name string `json:"name"`
+	KVs  []KV   `json:"kvs"`
+}
 
 type KeyValueMap map[string]string
 
-var profilerFile, _ = filepath.Abs(".profiler")
 var anyEnvFile = ListFiles(".", "*.env")
 var envFile, _ = filepath.Abs(".env.yml")
 var envRcFile, _ = filepath.Abs(".envrc")
+
+func MapToProfile(profileName string, m map[string]string) Profile {
+
+	var kvs []KV
+	for k, v := range m {
+		kvs = append(kvs, KV{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	return Profile{
+		Name: profileName,
+		KVs:  kvs,
+	}
+}
 
 // ListFiles return a list of filenames that match the provided extension
 // found in the given folder
@@ -46,40 +69,6 @@ func FileExist(file string) bool {
 	return true
 }
 
-// AppendToFile append a string to a file.
-// It's used by the `add` command to properly append
-// new variables to profiles. It also create a profile
-// file if it does not exists.
-func AppendToFile(filePath, profileName, key, value string) error {
-
-	newProfile := false
-
-	if !FileExist(filePath) {
-		newProfile = true
-
-		_, err := os.Create(filePath)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-	}
-
-	f, err := os.OpenFile(filePath,	os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	
-	if newProfile {
-		_, err = f.WriteString(
-			fmt.Sprintf("profile_name: %s\n", profileName),
-		)
-	}
-	defer f.Close()
-
-	if key != "" && value != "" {
-		_, err = f.WriteString(fmt.Sprintf("%s: %s\n", key, value))
-	}
-
-	return err
-}
-
 func FoundInfFile(filePath, match string) (bool, int, error) {
 
 	if _, err := os.Stat(filePath); err != nil {
@@ -89,7 +78,7 @@ func FoundInfFile(filePath, match string) (bool, int, error) {
 		}
 	}
 
-	input, err := ioutil.ReadFile(filePath)
+	input, err := os.ReadFile(filePath)
 	if err != nil {
 		return false, 0, err
 	}
@@ -107,7 +96,7 @@ func FoundInfFile(filePath, match string) (bool, int, error) {
 
 // RemoveFromFile remove a line containing the match string from the given file
 func RemoveFromFile(filePath, match string) error {
-	input, err := ioutil.ReadFile(filePath)
+	input, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -115,7 +104,7 @@ func RemoveFromFile(filePath, match string) error {
 	lines := strings.Split(string(input), "\n")
 	_, lineNumber, err := FoundInfFile(filePath, match)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	for i := range lines {
@@ -129,7 +118,7 @@ func RemoveFromFile(filePath, match string) error {
 	// removes lines that only contains newline char:
 	output = strings.Replace(output, "\n\n", "\n", -1)
 	// Write the updated content to the profile file:
-	err = ioutil.WriteFile(filePath, []byte(output), 0644)
+	err = os.WriteFile(filePath, []byte(output), 0644)
 	if err != nil {
 		return err
 	}
@@ -139,7 +128,7 @@ func RemoveFromFile(filePath, match string) error {
 // ParseYaml parse the given yaml file
 func ParseYaml(filename string) KeyValueMap {
 	var y KeyValueMap
-	source, err := ioutil.ReadFile((filename))
+	source, err := os.ReadFile((filename))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -185,59 +174,66 @@ func ParseEnvrc(filename string) KeyValueMap {
 	return envrcVars
 }
 
-// SetEnvironment read the profilerFile and set a new environment in
-// the given shell (exported one if the config doesn't specify one)
-func SetEnvironment(yml KeyValueMap) {
+// SetEnvironment writes the given profile to the profiler file named by the
+// config and sets a new environment in the configured shell.
+//
+// It replaces: the profile it is given is the profile in use afterwards.
+// Callers that want the profile stacked over the one already in use -- every
+// `use` command -- go through StackEnvironment.
+func SetEnvironment(profile Profile) error {
+	cfg := config.Get()
+
 	d := []byte("")
-	err := ioutil.WriteFile(profilerFile, d, 0644)
+	p, err := filepath.Abs(cfg.ProfilerFileName)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 
-	for k, v := range yml {
+	err = os.WriteFile(p, d, 0644)
+	if err != nil {
+		return err
+	}
 
-		file, err := os.OpenFile(profilerFile, os.O_APPEND|os.O_WRONLY, 0644)
+	// profile_keys goes out with the profile's own variables, so the next
+	// `profiler use` can tell which of the environment's variables this
+	// profile owns and stack onto them. See KeysVar and ActiveProfile.
+	for _, kv := range withKeysMarker(profile.KVs) {
+
+		file, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0644)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 
 		defer file.Close()
 
-		str := fmt.Sprintf("export %s=\"%v\"\n", k, v)
+		str := fmt.Sprintf("export %s=\"%v\"\n", kv.Key, kv.Value)
 		if _, err = file.WriteString(str); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 
 		//if `k8sSwitchNamespace` is activated and the K8S_NAMESPACE env var is set in the profile, profiler will automatically switch namespace to this value.
-		if viper.GetBool("k8sSwitchNamespace") {
-			checkForKubernetesNamespace(k, v)
+		if cfg.K8sSwitchNamespace {
+			checkForKubernetesNamespace(kv.Key, kv.Value)
 		}
 
-		os.Setenv(k, v)
+		os.Setenv(kv.Key, kv.Value)
 	}
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	if !viper.GetBool("preserveProfile") {
-		err := os.Remove(".profiler")
+	if !cfg.PreserveProfile {
+		//if !viper.GetBool("preserveProfile") {
+		err := os.Remove(cfg.ProfilerFileName)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 	}
 
-	shell := viper.GetString("shell")
+	// shell := viper.GetString("shell")
+	shell := cfg.Shell
 	binary, err := exec.LookPath(shell)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	env := os.Environ()
@@ -245,9 +241,10 @@ func SetEnvironment(yml KeyValueMap) {
 	err = syscall.Exec(binary, args, env)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
 // GetProfile retrieve the profile from yaml definition
@@ -287,50 +284,8 @@ func Use(profilesFolder string, profileName string) {
 		}
 	}
 
-	SetEnvironment(envVars)
-}
-
-// UseSSMProfile set the environment for the given remote AWS SSM profile
-func UseSSMProfile(profileName string) {
-	vars, err := ssm.GetProfile(profileName)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	SetEnvironment(vars)
-}
-
-// UseNoProfile return a map of all the key:value set found in the local
-// accepted files
-func UseNoProfile() {
-	envVars := make(map[string]string)
-	// check for .profiler file:
-	if FileExist(profilerFile) {
-		for k, v := range ParseEnvrc(profilerFile) {
-			envVars[k] = v
-		}
-	}
-	// check for any .env files:
-	for _, thisEnvFile := range anyEnvFile {
-		for k, v := range ParseEnvrc(thisEnvFile) {
-			envVars[k] = v
-		}
-	}
-	// check for .env.yml file:
-	if FileExist(envFile) {
-		for k, v := range ParseYaml(envFile) {
-			envVars[k] = v
-		}
-	}
-	// check for .envrc file:
-	if FileExist(envRcFile) {
-		for k, v := range ParseEnvrc(envRcFile) {
-			envVars[k] = v
-		}
-	}
-
-	SetEnvironment(envVars)
+	p := MapToProfile(profileName, envVars)
+	SetEnvironment(p)
 }
 
 // ShowProfile return a list of keys for the given profile

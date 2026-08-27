@@ -1,17 +1,19 @@
 package consul
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/spf13/viper"
+	"github.com/julienlevasseur/profiler/config"
+	"github.com/julienlevasseur/profiler/pkg/profile"
 )
 
 func stringToByteSlice(value string) ([]byte, error) {
 	r := strings.NewReader(value)
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -20,10 +22,11 @@ func stringToByteSlice(value string) ([]byte, error) {
 }
 
 func newConsulAPIClient() (*api.Client, error) {
+	cfg := config.Get()
 	client, err := api.NewClient(&api.Config{
-		Address:   viper.GetString("consulAddress"),
-		TokenFile: viper.GetString("consulTokenFile"),
-		Token:     viper.GetString("consulToken"),
+		Address:   cfg.ConsulAddress,
+		TokenFile: cfg.ConsulTokenFile,
+		Token:     cfg.ConsulToken,
 	})
 
 	if err != nil {
@@ -33,8 +36,17 @@ func newConsulAPIClient() (*api.Client, error) {
 	return client, nil
 }
 
-/*ProfileExist return a boolean representation of the given profile existence*/
-func ProfileExist(profileName string) (bool, error) {
+func getProfilePath(profileName string) string {
+	cfg := config.Get()
+
+	return fmt.Sprintf(
+		"%s/%s",
+		cfg.ConsulProfilesPath,
+		profileName,
+	)
+}
+
+func profileExists(profileName string) (bool, error) {
 	kvs, err := getKVPairs("profiler/" + profileName)
 	if err != nil {
 		return false, err
@@ -56,15 +68,20 @@ func ListProfiles() ([]string, error) {
 		return []string{}, err
 	}
 
-	// Consul list will return the `profiler` folder as a KV, removing it from
-	// the slice because it doesn't need to be displayed:
-	kvs = kvs[1:]
-
 	var profiles []string
 	for _, kv := range kvs {
-		// Keys are named `profiler/Key`, removing the `profiler/` part for visibility:
-		profiles = append(profiles, strings.Split(kv.Key, "/")[1])
+		// Keys are named `profiler/Key`, removing the `profiler/` part for
+		// visibility. Consul also returns the `profiler/` folder itself as a
+		// KV pair, which is not a profile -- skipping it by name rather than
+		// by position means an empty store is empty rather than a panic.
+		name := strings.TrimPrefix(kv.Key, "profiler/")
+		if name == "" {
+			continue
+		}
+
+		profiles = append(profiles, strings.Split(name, "/")[0])
 	}
+
 	return profiles, nil
 }
 
@@ -82,7 +99,7 @@ func getKVPairs(path string) (api.KVPairs, error) {
 	return kvs, nil
 }
 
-/*GetKVPair retrieve a single KV from Consul*/
+/* GetKVPair retrieve a single KV from Consul */
 func GetKVPair(key string) (api.KVPair, error) {
 	consul, err := newConsulAPIClient()
 	if err != nil {
@@ -97,6 +114,43 @@ func GetKVPair(key string) (api.KVPair, error) {
 	return *kv, nil
 }
 
+/* GetKVPairAsProfile retrn a Consul KVPair as a Profile */
+func GetKVPairAsProfile(path string) (profile.Profile, error) {
+
+	consul, err := newConsulAPIClient()
+	if err != nil {
+		return profile.Profile{}, err
+	}
+
+	kv, _, err := consul.KV().Get(path, nil)
+	if err != nil {
+		return profile.Profile{}, err
+	}
+
+	var kvs []profile.KV
+
+	pairs := strings.Split(string(kv.Value), "\n")
+	for _, pair := range pairs {
+		// For now, only yaml data is supported for Consul KV:
+		kv := strings.Split(pair, ": ")
+		// ignore empty lines:
+		if len(kv) < 2 {
+			continue
+		}
+		kvs = append(kvs, profile.KV{
+			Key:   kv[0],
+			Value: kv[1],
+		})
+	}
+
+	p := profile.Profile{
+		Name: kv.Key,
+		KVs:  kvs,
+	}
+
+	return p, nil
+}
+
 /*CreateProfilerFolder create the `/profiler` KV folder as the profiles placeholder in Consul*/
 func CreateProfilerFolder() error {
 	consul, err := newConsulAPIClient()
@@ -107,7 +161,10 @@ func CreateProfilerFolder() error {
 	profile := &api.KVPair{
 		Key: "profiler/",
 	}
-	consul.KV().Put(profile, nil)
+	_, err = consul.KV().Put(profile, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -137,7 +194,7 @@ func AddKVPair(profileName string, KVs []string) error {
 		var b []byte
 		var actualKVPair api.KVPair
 
-		exist, err := ProfileExist(profileName)
+		exist, err := profileExists(profileName)
 		if err != nil {
 			return err
 		}
@@ -226,6 +283,47 @@ func AddKVPair(profileName string, KVs []string) error {
 	return nil
 }
 
+func GetProfile(profileName string) (profile.Profile, error) {
+	cfg := config.Get()
+
+	consul, err := newConsulAPIClient()
+	if err != nil {
+		return profile.Profile{}, err
+	}
+
+	kv, _, err := consul.KV().Get(fmt.Sprintf(
+		"%s/%s",
+		cfg.ConsulProfilesPath,
+		profileName,
+	), nil)
+	if err != nil {
+		return profile.Profile{}, err
+	}
+
+	var kvs []profile.KV
+
+	pairs := strings.Split(string(kv.Value), "\n")
+	for _, pair := range pairs {
+		// For now, only yaml data is supported for Consul KV:
+		kv := strings.Split(pair, ": ")
+		// ignore empty lines:
+		if len(kv) < 2 {
+			continue
+		}
+		kvs = append(kvs, profile.KV{
+			Key:   kv[0],
+			Value: kv[1],
+		})
+	}
+
+	p := profile.Profile{
+		Name: kv.Key,
+		KVs:  kvs,
+	}
+
+	return p, nil
+}
+
 /*ShowProfile return the list of keys for a profile*/
 func ShowProfile(profileName string) ([]string, error) {
 	var keys []string
@@ -249,7 +347,7 @@ func ShowProfile(profileName string) ([]string, error) {
 	return keys, nil
 }
 
-/*DeleteKey delete a Consul Key*/
+/* DeleteKey delete a Consul Key */
 func DeleteKey(key string) error {
 	consul, err := newConsulAPIClient()
 	if err != nil {
@@ -259,6 +357,198 @@ func DeleteKey(key string) error {
 	_, err = consul.KV().Delete(key, nil)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func profileToKVPair(p profile.Profile) (api.KVPair, error) {
+	var kvp api.KVPair
+	var b []byte
+
+	kvp.Key = getProfilePath(p.Name)
+	for _, kv := range p.KVs {
+		c, err := stringToByteSlice(
+			fmt.Sprintf("%s: %s\n", kv.Key, kv.Value),
+		)
+		if err != nil {
+			return api.KVPair{}, err
+		}
+
+		b = append(b, c...)
+	}
+	kvp.Value = b
+
+	return kvp, nil
+}
+
+func AddProfile(args []string) error {
+	cfg := config.Get()
+
+	consul, err := newConsulAPIClient()
+	if err != nil {
+		return err
+	}
+
+	profilerFolder, _, err := consul.KV().Get(cfg.ConsulProfilesPath, nil)
+	if err != nil {
+		return err
+	}
+
+	if profilerFolder == nil {
+		f := &api.KVPair{
+			Key: "profiler/",
+		}
+		_, err = consul.KV().Put(f, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(args) > 1 {
+		if len(args) < 3 { // If no value provided:
+			return errors.New("Please provide a value for the variable")
+		}
+
+		// If the number of args is even (profile name + an odd number of
+		// arguments), this mean that a value is missing for its key:
+		if len(args)%2 == 0 {
+			return errors.New("Missing argument")
+		}
+
+		// Convert args to profile.KVs
+		profileName, args := args[0], args[1:]
+		var kvs []profile.KV
+		for i := 0; i < len(args); i++ {
+			kvs = append(
+				kvs,
+				profile.KV{
+					Key:   args[i],
+					Value: args[i+1],
+				},
+			)
+			i++
+		}
+
+		// Does the profile already exists ?
+		var actualProfile profile.Profile
+		exists, err := profileExists(profileName)
+		if err != nil {
+			return err
+		}
+		if exists {
+			actualProfile, err = GetKVPairAsProfile(getProfilePath(profileName))
+			if err != nil {
+				return err
+			}
+
+			kvs = append(kvs, actualProfile.KVs...)
+		} else {
+			kvs = append(kvs, profile.KV{Key: "profile_name", Value: profileName})
+		}
+
+		// Set the Profile
+		var p = profile.Profile{
+			Name: profileName,
+			KVs:  kvs,
+		}
+		// Save the profile
+		err = SaveProfile(p)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Just the name of profile has been provided, let's create an empty profile:
+		var p = profile.Profile{
+			Name: args[0],
+		}
+		// err = consul.SaveProfile(p)
+		err = SaveProfile(p)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func SaveProfile(p profile.Profile) error {
+	consul, err := newConsulAPIClient()
+	if err != nil {
+		return err
+	}
+
+	kvPair, err := profileToKVPair(p)
+	if err != nil {
+		return err
+	}
+
+	_, err = consul.KV().Put(&kvPair, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RemoveProfile(args []string) error {
+	pName := args[0]
+	keys := args[1:]
+
+	// Check if the profile exists
+	exists, err := profileExists(pName)
+	if err != nil {
+		return err
+	}
+
+	consul, err := newConsulAPIClient()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("The profile does not exist")
+	} else {
+		if len(args) == 0 {
+			_, err := consul.KV().Delete(getProfilePath(pName), nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Retrieve the actual profile:
+			p, err := GetKVPairAsProfile(getProfilePath(pName))
+			if err != nil {
+				return err
+			}
+
+			var updatedKVs []profile.KV
+
+			for _, key := range keys {
+				// the profile_name key cannot be removed (just remove the whole profile then)
+				if key == "profile_name" {
+					continue
+				}
+
+				for _, kv := range p.KVs {
+					if key != kv.Key {
+						updatedKVs = append(
+							updatedKVs,
+							profile.KV{
+								Key:   kv.Key,
+								Value: kv.Value,
+							},
+						)
+					}
+				}
+			}
+
+			prof := profile.Profile{
+				Name: pName,
+				KVs:  updatedKVs,
+			}
+
+			SaveProfile(prof)
+		}
 	}
 
 	return nil

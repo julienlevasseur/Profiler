@@ -8,9 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/julienlevasseur/profiler/config"
 	"github.com/julienlevasseur/profiler/pkg/profile"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var awsMFACmd = &cobra.Command{
@@ -25,13 +25,9 @@ var awsMFACmd = &cobra.Command{
 		}
 
 		session, err := session.NewSession(&aws.Config{
-			Region: aws.String(viper.GetString("ssmRegion")),
+			Region: aws.String(config.Get().SSMRegion),
 		})
-
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+		cmdErrorHandler(err)
 
 		// Create a IAM service client:
 		svc := iam.New(session)
@@ -41,11 +37,7 @@ var awsMFACmd = &cobra.Command{
 				UserName: aws.String(os.Getenv("AWS_MFA_USERNAME")),
 			},
 		)
-
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+		cmdErrorHandler(err)
 
 		var mfaDeviceSn string
 		for _, i := range mfaDevices.MFADevices {
@@ -77,7 +69,8 @@ var awsMFACmd = &cobra.Command{
 			awsCreds.Credentials.SessionToken,
 		)
 
-		profile.SetEnvironment(envVars)
+		p := profile.MapToProfile(envVars["profile_name"], envVars)
+		profile.SetEnvironment(p)
 	},
 }
 
