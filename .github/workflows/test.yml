@@ -8,9 +8,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Install Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         # Single source of truth: the `go` directive in go.mod.
         go-version-file: go.mod

@@ -1,9 +1,7 @@
 package consul
 
 import (
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -43,29 +41,29 @@ func newConsulAPIClient() (*api.Client, error) {
 	return client, nil
 }
 
-func stringToByteSlice(value string) ([]byte, error) {
-	r := strings.NewReader(value)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return []byte{}, err
-	}
+// func stringToByteSlice(value string) ([]byte, error) {
+// 	r := strings.NewReader(value)
+// 	b, err := io.ReadAll(r)
+// 	if err != nil {
+// 		return []byte{}, err
+// 	}
 
-	return b, err
-}
+// 	return b, err
+// }
 
-func getKVPairs(path string) (api.KVPairs, error) {
-	consul, err := newConsulAPIClient()
-	if err != nil {
-		return api.KVPairs{}, err
-	}
+// func getKVPairs(path string) (api.KVPairs, error) {
+// 	consul, err := newConsulAPIClient()
+// 	if err != nil {
+// 		return api.KVPairs{}, err
+// 	}
 
-	kvs, _, err := consul.KV().List(path, nil)
-	if err != nil {
-		return api.KVPairs{}, err
-	}
+// 	kvs, _, err := consul.KV().List(path, nil)
+// 	if err != nil {
+// 		return api.KVPairs{}, err
+// 	}
 
-	return kvs, nil
-}
+// 	return kvs, nil
+// }
 
 func (r *consulRepository) Add(args []string) error {
 	err := consul.AddProfile(args)
