@@ -1,3 +1,14 @@
+# 4.0.2
+
+- `profiler list` asks every repository at once instead of one after another, so it waits for the slowest backend rather than for the sum of all of them. The output keeps `supportedRepositories` order whichever backend answers first, and a failure now names the repository it came from.
+- SSM calls are bounded: five seconds a request, fifteen for a whole paginated listing, and two retries at most. `profiler list` could previously hang on a network that drops packets rather than refusing them.
+- `config.Get` is safe to call from several goroutines at once.
+
+# 4.0.1
+
+- fail fast on SSM IsConfigured if no AWS env var are set
+- update pipeline actions
+
 # 4.0.0
 
 - The SSM repository is implemented rather than stubbed: `profiler list` shows SSM profiles when AWS credentials resolve, `profiler ssm use` sets an environment from an SSM profile, and every `profiler ssm` subcommand goes through the repository interface.
