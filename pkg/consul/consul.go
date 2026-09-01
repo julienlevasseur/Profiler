@@ -521,25 +521,34 @@ func RemoveProfile(args []string) error {
 				return err
 			}
 
-			var updatedKVs []profile.KV
-
+			removed := make(map[string]bool, len(keys))
 			for _, key := range keys {
 				// the profile_name key cannot be removed (just remove the whole profile then)
 				if key == "profile_name" {
 					continue
 				}
 
-				for _, kv := range p.KVs {
-					if key != kv.Key {
-						updatedKVs = append(
-							updatedKVs,
-							profile.KV{
-								Key:   kv.Key,
-								Value: kv.Value,
-							},
-						)
-					}
+				removed[key] = true
+			}
+
+			// The profile is rewritten whole, so the variables to keep are
+			// collected in one pass over them: a variable has to survive
+			// every key asked about rather than just the last one, and one
+			// kept has to be written once rather than once per key.
+			var updatedKVs []profile.KV
+
+			for _, kv := range p.KVs {
+				if removed[kv.Key] {
+					continue
 				}
+
+				updatedKVs = append(
+					updatedKVs,
+					profile.KV{
+						Key:   kv.Key,
+						Value: kv.Value,
+					},
+				)
 			}
 
 			prof := profile.Profile{
@@ -547,7 +556,9 @@ func RemoveProfile(args []string) error {
 				KVs:  updatedKVs,
 			}
 
-			SaveProfile(prof)
+			if err := SaveProfile(prof); err != nil {
+				return err
+			}
 		}
 	}
 

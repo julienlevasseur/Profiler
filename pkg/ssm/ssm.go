@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -180,6 +181,12 @@ func deleteParameter(name string) error {
 // AWS setup at all. Answering false is what keeps `profiler list` usable
 // there: cmd/list skips a repository that is not configured.
 func IsConfigured() bool {
+	// Fail fast:
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" ||
+		os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		return false
+	}
+
 	sess, err := session.NewSession(
 		awsConfig().
 			WithHTTPClient(&http.Client{Timeout: probeTimeout}).
@@ -189,10 +196,12 @@ func IsConfigured() bool {
 		return false
 	}
 
-	// SSM cannot be reached without a region, and every call would fail
-	// with MissingRegion. NewSession fills the region in from AWS_REGION
-	// when ssmRegion is unset, so this reads the resolved session rather
-	// than the configuration.
+	// The region is read first because it is the free half of the answer:
+	// resolving it touches nothing, while resolving credentials can end at
+	// the metadata endpoint. SSM cannot be reached without a region, and
+	// every call would fail with MissingRegion. NewSession fills the region
+	// in from AWS_REGION when ssmRegion is unset, so this reads the resolved
+	// session rather than the configuration.
 	if aws.StringValue(sess.Config.Region) == "" {
 		return false
 	}
