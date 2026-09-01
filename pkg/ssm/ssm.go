@@ -1,6 +1,7 @@
 package ssm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,6 +31,17 @@ const profilesPath = "/profiler"
 // chain ends at the EC2 metadata endpoint, which is unreachable rather than
 // absent on a machine that is not an EC2 instance.
 const probeTimeout = 2 * time.Second
+
+// callTimeout bounds a single request to SSM, and apiTimeout the operation
+// those requests make up. Both are needed: a paginated listing is one request
+// a page, so bounding the request alone leaves the operation unbounded. They
+// are what keeps `profiler list` from hanging on a network that drops packets
+// rather than refusing them, where the SDK would otherwise retry into the
+// minutes.
+const (
+	callTimeout = 5 * time.Second
+	apiTimeout  = 15 * time.Second
+)
 
 // awsConfig is the SDK configuration both the SSM client and the credential
 // probe are built from, so the two never disagree about which credentials the
@@ -62,7 +74,11 @@ func awsConfig() *aws.Config {
 }
 
 func newSSMService() (*ssm.SSM, error) {
-	sess, err := session.NewSession(awsConfig())
+	sess, err := session.NewSession(
+		awsConfig().
+			WithHTTPClient(&http.Client{Timeout: callTimeout}).
+			WithMaxRetries(2),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +125,13 @@ func getParameters(path string) ([]*ssm.Parameter, error) {
 
 	var params []*ssm.Parameter
 
-	err = svc.GetParametersByPathPages(
+	// The deadline covers the whole walk rather than one page of it, so a
+	// hierarchy of many pages cannot add up to an unbounded wait.
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+
+	err = svc.GetParametersByPathPagesWithContext(
+		ctx,
 		&ssm.GetParametersByPathInput{
 			Path:      aws.String(path),
 			Recursive: aws.Bool(true),

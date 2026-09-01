@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -212,10 +213,21 @@ func createProfilesFolder(path string) error {
 	return os.MkdirAll(path, 0755)
 }
 
+// getMu serializes the viper reads Get makes. viper holds its configuration
+// in plain maps with no locking of its own, and `profiler list` asks every
+// repository for its profiles at once -- each of which calls Get -- so
+// without this the concurrent decodes would race.
+var getMu sync.Mutex
+
 // Get returns the current configuration. It decodes viper on every call
 // rather than caching, so a value set after InitCfg -- as the tests do with
 // viper.Set -- is seen.
+//
+// It is safe to call from several goroutines at once.
 func Get() Config {
+	getMu.Lock()
+	defer getMu.Unlock()
+
 	var cfg Config
 
 	if err := viper.Unmarshal(&cfg); err != nil {
